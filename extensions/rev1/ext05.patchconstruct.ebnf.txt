@@ -1,0 +1,3 @@
+patch                ::= "PATCH" "(" patch_construct_body ")"
+patch_construct_body ::= /* define the patch construct body rules that suits your needs */
+                         identifier "," identifier /* replaces first identifier with second */

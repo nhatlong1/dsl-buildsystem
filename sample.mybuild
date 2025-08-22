@@ -1,0 +1,122 @@
+/* Import built-in modules */
+IMPORT(BUILTIN(FILESTAT))
+IMPORT(BUILTIN(BUILDCACHE))
+
+USING(FILESTAT, *)
+USING(BUILDCACHE, *)
+
+/* Declare executables */
+/* DECLARE(Type, Identifier, Description, WhereToSourceIfNotAvailable, SearchPathOtherThanSystemPath) */
+DECLARE(EXECUTABLE, gcc, "GNU C++ Compiler", "SYSTEM", NULL)
+/* Missing a way to use shell builtin functions; */
+/* Currently they are accessible via declaring shell executable, i.e. sh */
+/* Then: EXECUTE(sh, "-c", "shellCMD", ...) */
+DECLARE(EXECUTABLE, mkdir, "Create directories", "SYSTEM", NULL)
+
+/* Declare build flags with substitution */
+/* Technically string with substitution */
+DECLARE(FLAGS, SDL3_INCLUDE, "-I$1")
+DECLARE(FLAGS, SDL3_LIB, "-L$1 -l$2")
+DECLARE(FLAGS, COMPILE_FLAGS, "-Wall -std=c++17 -c $1 -o $2")
+DECLARE(FLAGS, LINK_FLAGS, "$1 $2 -o $3")
+
+/* Declare variables */
+/* Variables store exact value */
+/* Missing mechanism to make them mutable, so now they aren't */
+DECLARE(VARIABLE, SDL3_INCLUDE_PATH, "libs/sdl3-vendor/include")
+DECLARE(VARIABLE, SDL3_LIB_PATH, "libs/sdl3-vendor/lib")
+DECLARE(VARIABLE, MAIN_SRC, "main.cpp")
+DECLARE(VARIABLE, SHAPES_SRC, "src/shapes.cpp")
+DECLARE(VARIABLE, SHAPES_HDR, "src/shapes.hpp")
+DECLARE(VARIABLE, MAIN_OBJ, "build/main.o")
+DECLARE(VARIABLE, SHAPES_OBJ, "build/shapes.o")
+DECLARE(VARIABLE, TARGET_EXE, "build/sdl3_app")
+DECLARE(VARIABLE, BUILD_DIR, "build")
+
+/* Enable build cache writing */
+/* Must be explicit */
+WRITEBUILDCACHE()
+
+/* Create build directory if needed, using IFELSE */
+IF(NOT(EXISTS(@BUILD_DIR)),
+    /* Then clause: directory does not exist, create it */
+    EXECUTE(mkdir, "-p", BUILD_DIR),
+    /* Else clause: directory already exists */
+    /* Inline substituted string starting with macro indicator symbol @ */
+    /* Requires referencing an existing symbol with '$' */
+    ECHO(@"Build directory '$BUILD_DIR' already exists.")
+)
+
+/* Build main.o if needed */
+ECHO("Checking main.o dependencies...")
+IFANY(
+    NOT(EXISTS(MAIN_OBJ)),
+    /* '.' notation is syntactic sugar, enabled via the use of '@' */
+    /* Allows access to properties via '.' */
+    /* Instead of query-like structure: SELECT(STAT(MAIN_SRC), LASTMODIFIEDDATE)
+    NEQ(@STAT(MAIN_SRC).LASTMODIFIEDDATE, @CACHE(MAIN_SRC).LASTMODIFIEDDATE),
+    NEQ(@STAT(SHAPES_HDR).LASTMODIFIEDDATE, @CACHE(SHAPES_HDR).LASTMODIFIEDDATE),
+    /* Rebuild main.o */
+    /* To support echo here, ECHO command always return True */
+    /* It's hard for a print command to fail anyways, no? */
+    ECHO(@"Rebuilding main.o from '$MAIN_SRC'"),
+    /* Execute space (` `) join arguments into a command before executing them */
+    EXECUTE(gcc,
+            /* First mechanism to macro/flag expansion: function call-like */
+            SDL3_INCLUDE_PATH(SDL3_INCLUDE),
+            MAIN_SRC,
+            MAIN_OBJ,
+            /* Second mechanism to macro/flag expansion: '@' shortcut symbol */
+            /* 2 immediate previous objects are popped out to use as argument to this macro */
+            /* Because this macro has 2 slots to fill */
+            /* *** */
+            /* Each macro expansion round will try to pop either argument first */
+            /* Panic & quit if can't then expand macro and check if next round is needed */
+            /* Macro argument popping starts from left to right */
+            /* Though I'm trying to see if RTL makes more sense? */
+            /* Maybe that should be somehow configurable? */
+            @COMPILE_FLAGS)
+)
+
+/* Build shapes.o if needed */
+ECHO("Checking shapes.o dependencies...")
+IFANY(
+    /* Technically not wrong to use this notation on variable or whatever, just... */
+    /* Don't. They make invoke the dedicated parser for nothing */
+    NOT(EXISTS(@SHAPES_OBJ)),
+    NEQ(@STAT(SHAPES_SRC).LASTMODIFIEDDATE, @CACHE(SHAPES_SRC).LASTMODIFIEDDATE),
+    NEQ(@STAT(SHAPES_HDR).LASTMODIFIEDDATE, @CACHE(SHAPES_HDR).LASTMODIFIEDDATE),
+    /* Rebuild shapes.o */
+    ECHO(@"Rebuilding shapes.o from '$SHAPES_SRC'"),
+    EXECUTE(gcc,
+            "-Wall", "-std=c++17",
+            SDL3_INCLUDE_PATH(SDL3_INCLUDE),
+            "-c", SHAPES_SRC,
+            "-o", SHAPES_OBJ)
+)
+
+/* Link final executable if needed */
+ECHO("Checking final executable dependencies...")
+IFANY(
+    NOT(EXISTS(TARGET_EXE)),
+    NEQ(@STAT(MAIN_OBJ).LASTMODIFIEDDATE, @CACHE(MAIN_OBJ).LASTMODIFIEDDATE),
+    NEQ(@STAT(SHAPES_OBJ).LASTMODIFIEDDATE, @CACHE(SHAPES_OBJ).LASTMODIFIEDDATE),
+    /* Link executable */
+    ECHO("Linking final executable to '@TARGET_EXE'"),
+    EXECUTE(gcc,
+            MAIN_OBJ, SHAPES_OBJ,
+            /* Proposed third mechanism to expand macro: through an explicit macro command */
+            /* That will try to recursively expand them */
+            /* Probably should've name them "FLAG" */
+            /* MACRO(SDL3_LIB, SDL3_LIB_PATH, "SDL3"), */
+            /* *** */
+            /* It is noteworthy that `"` SDL3 `"` is not necessary; any undefined symbols are */
+            /* understood implicitly as strings until they cause issue */
+            /* i.e. gets called like a command or macro expansion */
+            /* But it is not decided whether to keep this behaviour */
+            /* And it's better to be explicit */ 
+            SDL3_LIB(SDL3_LIB_PATH, "SDL3"),
+            "-o", TARGET_EXE)
+)
+
+ECHO("Build process complete.")

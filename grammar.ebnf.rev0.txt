@@ -1,0 +1,117 @@
+program          ::= { statement }
+
+statement        ::= echo_statement
+                   | declaration
+                   | assignment
+                   | import
+                   | using
+                   | execution
+                   | conditional
+                   | comment
+
+echo_statement   ::= "ECHO" "(" [ arg_list ] ")"
+
+declaration      ::= "DECLARE" "(" decl_type "," identifier "," decl_value [ "," source_info [ "," search_path ] ] ")"
+
+decl_type        ::= "EXECUTABLE"
+                   | "FLAGS"
+                   | "VARIABLE"
+
+decl_value       ::= string
+                   | template_string
+
+source_info      ::= string | NULL
+
+search_path      ::= string | NULL
+
+/* identifier type is either FLAGS or VARIABLE */
+/* argument must be compatible with type */
+assignment       ::= "SET" "(" identifier "," argument ")"
+
+/* IMPORT brings modules into namespaced scope */
+import           ::= "IMPORT" "(" source [ "," "REQUIRED" ] [ "," "AS" "(" identifier ")" ] ")"
+                   | "FROM" "(" source "," import_list [ "," "REQUIRED" ] [ "," "AS" "(" identifier ")" ] ")"
+
+import_list      ::= identifier
+                   | "{" identifier { "," identifier } "}"
+
+/* USING brings items into global scope */
+/* USING(source_module, target, [ AS(alias) WHEN target IS FUNCTION ]) */
+using            ::= "USING" "(" identifier "," ( identifier | "*" ) [ "," "AS" "(" identifier ")" ] ")"
+
+source           ::= "BUILTIN" "(" identifier ")"
+                   | "EXTERNAL" "(" qualified_identifier ")"
+                   | "USER" "(" identifier "," string ")"
+
+execution        ::= "EXECUTE" "(" executable_ref [ "," arg_list ] ")"
+
+executable_ref   ::= identifier | qualified_identifier
+
+conditional      ::= cond_fn "(" arg_list "," statement [ "," statement ] ")"
+
+cond_fn          ::= "IF"
+                   | "IFANY"
+                   | "IFALL"
+                   | "IFNEQ"
+                   | "IFEQ"
+
+arg_list         ::= argument { "," argument }
+
+argument         ::= string
+                   | macro_string
+                   | number
+                   | identifier
+                   | property_access /* prioritise property access rule */
+                   | function_call /* covers macro expansion via function call and function calls itself */
+                   | variable_ref
+                   | macro_auto
+                   | boolean
+
+qualified_identifier ::= identifier "." identifier { "." identifier }
+
+/* qualified_identifier as object with properties to be accessed */
+property_access  ::= "@" function_call "." identifier { "." identifier }
+                   | "@" qualified_identifier
+
+/* qualified_identifier as module-nested macro to be expanded */
+macro_auto       ::= "@" ( identifier | qualified_identifier )
+
+macro_string     ::= '@"' { ( string_char | "$" variable_ref ) } '"'
+
+variable_ref     ::= "$" ( identifier | qualified_identifier )
+
+/* function_call on property_access probably worth an extension spec of its own */
+function_call    ::= ( identifier | property_access ) "(" [ arg_list ] ")"
+
+identifier       ::= letter { letter | digit | "_" }
+
+string           ::= '"' { string_char } '"'
+
+/* worth consider an extension spec to extend this with variable_ref */
+template_string  ::= '"' { ( string_char | "$" number ) } '"'
+
+boolean          ::= "TRUE" | "FALSE"
+
+string_char      ::= escape_sequence
+                   | any_char - ( '"' | '\' )
+
+escape_sequence  ::= '\' ( '"' | '\' | 'n' | 't' | 'r' | '0' | 'x' hex_digit hex_digit )
+
+hex_digit        ::= digit | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+
+number           ::= '0'
+                   | digit - '0' { digit }
+
+comment          ::= "/*" { comment_char } "*/"
+
+comment_char     ::= any_char - ( "*" | "/" ) | "*" any_char - "/"
+
+/* Lexical rules */
+NULL             ::= "NULL"  /* Special null token */
+
+letter           ::= "a" | "b" | ... | "z" | "A" | "B" | ... | "Z"
+digit            ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+any_char         ::= letter | digit | " " | "!" | ... /* all printable characters */
+
+/* Whitespace (ignored between tokens) */
+whitespace       ::= " " | "\t" | "\n" | "\r"

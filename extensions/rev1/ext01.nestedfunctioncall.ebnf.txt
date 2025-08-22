@@ -1,0 +1,1 @@
+function_call    ::= ( identifier | property_access ) "(" [ arg_list ] ")"

@@ -1,0 +1,26 @@
+IMPORT(BUILTIN(FILESTAT))
+IMPORT(BUILTIN(BUILDCACHE))
+
+USING(FILESTAT, *)
+USING(BUILDCACHE, *)
+
+WRITEBUILDCACHE()
+
+/*
+ WRITEBUILDCACHE()
+ STAT(file)
+ 0. tao cache neu khong ton tai
+ Them cai nay -> 1. ghi hoac cap nhat record cua file vao cache
+ 2. tra ve record cua file
+*/
+
+DECLARE(EXECUTABLE, gpp, "GNU C++ Compiler", "winlibs.com", NULL)
+
+IF(
+	NEQ(
+		SELECT(STAT("main.cpp", LASTMODIFIEDDATE)),
+		SELECT(CACHE("main.cpp", LASTMODIFIEDDATE))
+	),
+	EXECUTE(gpp, "main.cpp", "-o", "main"),
+	ECHO("main.cpp up to date")
+)

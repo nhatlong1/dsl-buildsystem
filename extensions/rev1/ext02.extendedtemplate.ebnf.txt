@@ -1,0 +1,1 @@
+template_string  ::= '"' { ( string_char | "$" ( number | variable_ref ) ) } '"'

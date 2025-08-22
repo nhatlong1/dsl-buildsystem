@@ -1,0 +1,3 @@
+loop             ::= "FOR" "(" identifier "," arg_list ")" statement
+argument         ::= ... | array
+array            ::= "[" [ arg_list ] "]"
