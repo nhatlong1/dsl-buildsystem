@@ -14,6 +14,7 @@ class TokenType:
     STAR = 'STAR'
     LBRACE = 'LBRACE' # For potential syntax extensions
     RBRACE = 'RBRACE' # For potential syntax extensions
+    PIPE_GT = 'PIPE_GT' # |>
     EOF = 'EOF'
 
 class Token:
@@ -163,6 +164,13 @@ class Lexer:
                 self.advance()
                 return Token(TokenType.RBRACE, '}', self.line, self.column)
 
+            if self.current_char == '|':
+                if self.peek() == '>':
+                    line = self.line
+                    column = self.column
+                    self.advance()
+                    self.advance()
+                    return Token(TokenType.PIPE_GT, '|>', line, column)
             self.error(f"Invalid character '{self.current_char}'")
 
         return Token(TokenType.EOF, None, self.line, self.column)

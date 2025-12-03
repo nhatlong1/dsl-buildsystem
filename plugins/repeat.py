@@ -9,27 +9,21 @@ class RepeatNode(ASTNode):
 def parse_repeat(parser):
     # Consumed REPEAT token (it was the identifier that triggered this)
     parser.eat(TokenType.IDENTIFIER)
+    parser.eat(TokenType.LPAREN)
 
-    # Expect a number
+    # Expect a number (count)
     count_token = parser.current_token
     parser.eat(TokenType.NUMBER)
     count = count_token.value
 
-    # Expect a block or a single statement?
-    # Let's say a single statement for simplicity, or we can use braces if we added them to lexer.
-    # The lexer has braces. Let's use braces.
+    parser.eat(TokenType.COMMA)
 
-    if parser.current_token.type == TokenType.LBRACE:
-        parser.eat(TokenType.LBRACE)
-        statements = []
-        while parser.current_token.type != TokenType.RBRACE and parser.current_token.type != TokenType.EOF:
-            statements.append(parser.parse_statement())
-        parser.eat(TokenType.RBRACE)
-        body = statements
-    else:
-        body = [parser.parse_statement()]
+    # Parse the statement to be repeated
+    body = parser.parse_expression()
 
-    return RepeatNode(count, body)
+    parser.eat(TokenType.RPAREN)
+
+    return RepeatNode(count, [body])
 
 def execute_repeat(node, interpreter):
     # We need to register this handler in the interpreter?
