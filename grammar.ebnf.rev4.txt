@@ -1,0 +1,59 @@
+/* Parser Rules */
+
+program          ::= { statement }
+
+/*
+   Statements are typically function calls, but plugins can extend this
+   to introduce new syntax forms.
+*/
+statement        ::= function_call
+
+function_call    ::= identifier "(" [ arg_list ] ")"
+
+arg_list         ::= expression { "," expression }
+
+/*
+   Expressions support property access and an optional '@' prefix
+   for dereferencing/macro expansion.
+*/
+expression       ::= term { "." identifier }
+
+term             ::= [ "@" ] atom
+
+atom             ::= literal
+                   | function_call
+                   | identifier
+
+identifier       ::= letter { letter | digit | "_" }
+
+literal          ::= string
+                   | number
+                   | boolean
+                   | NULL
+
+string           ::= '"' { string_char } '"'
+
+string_char      ::= escape_sequence
+                   | any_char - ( '"' | '\' )
+
+escape_sequence  ::= '\' ( '"' | '\' | 'n' | 't' | 'r' | '0'
+                         | 'x' hex_digit hex_digit )
+
+number           ::= "0" | ( digit - '0' ) { digit }
+
+boolean          ::= "TRUE" | "FALSE"
+
+NULL             ::= "NULL"
+
+/* Lexical Rules */
+
+letter           ::= "a".."z" | "A".."Z"
+digit            ::= "0".."9"
+hex_digit        ::= digit | "a".."f" | "A".."F"
+any_char         ::= /* any printable character */
+whitespace       ::= " " | "\t" | "\n" | "\r"
+
+/* Lexer Notes */
+
+comment          ::= Comments begin with "/*" and end with "*/".
+                     Comments may not be nested.
