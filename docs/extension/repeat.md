@@ -6,8 +6,7 @@ The `repeat` plugin adds a loop construct to the language.
 
 ```ebnf
 statement ::= ... | repeat_stmt
-repeat_stmt ::= "REPEAT" number block
-block ::= "{" { statement } "}"
+repeat_stmt ::= "REPEAT" number "{" { statement } "}"
 ```
 
 ## Example
