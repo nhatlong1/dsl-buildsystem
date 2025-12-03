@@ -1,6 +1,5 @@
 from src.lexer import TokenType
 from src.ast_nodes import ASTNode, Identifier
-import sys
 
 class TryNode(ASTNode):
     def __init__(self, operation, catch_stmt):
