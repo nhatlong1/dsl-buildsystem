@@ -6,15 +6,13 @@ The `repeat` plugin adds a loop construct to the language.
 
 ```ebnf
 statement ::= ... | repeat_stmt
-repeat_stmt ::= "REPEAT" number "{" { statement } "}"
+repeat_stmt ::= "REPEAT" "(" number "," statement ")"
 ```
 
 ## Example
 
 ```
-REPEAT 3 {
-    ECHO("This prints 3 times")
-}
+REPEAT(3, ECHO("This prints 3 times"))
 ```
 
 ## Usage
