@@ -47,7 +47,7 @@ def register(parser):
     original_visit = Interpreter.visit
 
     def visit_TryNode(self, node):
-        execute_try(node, self)
+        return execute_try(node, self)
 
     Interpreter.visit_TryNode = visit_TryNode
 
