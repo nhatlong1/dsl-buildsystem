@@ -1,1 +1,2 @@
+program          ::= { statement | pipeline }
 pipeline         ::= expression "|>" function_call
