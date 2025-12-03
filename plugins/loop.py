@@ -1,6 +1,5 @@
 from src.lexer import TokenType
 from src.ast_nodes import ASTNode, Identifier, Literal
-from src.interpreter import Interpreter
 
 class ForLoopNode(ASTNode):
     def __init__(self, var_name, items, body):
