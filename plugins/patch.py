@@ -1,5 +1,5 @@
 from src.lexer import TokenType
-from src.ast_nodes import ASTNode, Identifier
+from src.ast_nodes import ASTNode
 
 class PatchNode(ASTNode):
     def __init__(self, target_id, new_id):
