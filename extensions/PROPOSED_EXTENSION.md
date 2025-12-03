@@ -10,5 +10,5 @@
 | **Conditionals** | `IF(cond, true, false)` and `IFANY` logic. | **Must-have** | **Integrated** | N/A (Core) |
 | **Assignment** | `DECLARE()` and `SET()` functions. | **Must-have** | **Integrated** | N/A (Core) |
 | **Imports** | `IMPORT()` function. | **Must-have** | **Integrated** | N/A (Core) |
-| **Pipeline Operator** | `\|>` syntax for chaining. Enhances readability of nested functional calls. | **Nice-to-have** | **Implemented** (Disabled) | [[ext11.pipeline.ebnf.txt]] |
+| **Pipeline Operator** | `|>` syntax for chaining. Enhances readability of nested functional calls. | **Nice-to-have** | **Implemented** (Disabled) | [[ext11.pipeline.ebnf.txt]] |
 | **Repeat Loop** | `REPEAT n { ... }` block syntax. | **Nice-to-have** | **Implemented** | N/A (Plugin) |
