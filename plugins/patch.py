@@ -37,6 +37,7 @@ def register(parser):
 
     def visit_PatchNode(self, node):
         execute_patch(node, self)
+        return None
 
     Interpreter.visit_PatchNode = visit_PatchNode
 
