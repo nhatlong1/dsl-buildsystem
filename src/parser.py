@@ -217,23 +217,8 @@ class Parser:
         # I will assume `FunctionCall` requires Identifier name for now to match AST.
         # But `left` in `parse_call_expression` is the expression before `(`.
 
-        if isinstance(left, Identifier):
-            return FunctionCall(name=left, args=args)
-
-        # If left is not Identifier, we have a problem matching `FunctionCall` node structure.
-        # `PropertyAccess`?
-        # If the language doesn't support method calls `obj.method()`, then `left` MUST be Identifier.
-        # If I look at `mini_sample`: `SELECT(STAT(...))`.
-        # `STAT` is Identifier.
-        # `STAT(...).LASTMODIFIEDDATE` -> `PropertyAccess`.
-        # This is inside `SELECT(...)`.
-
-        # So `Call` always applies to `Identifier`.
-        # If we have `(Expression)(...)` that would be a call on result.
-        # But AST `FunctionCall` hardcodes `name: Identifier`.
-        # So I will raise error if left is not Identifier.
         if not isinstance(left, Identifier):
-             self.error("Function call must be on an Identifier")
+             self.error(f"Function call must be on an Identifier, but got {type(left)}")
 
         return FunctionCall(name=left, args=args)
 
