@@ -1,5 +1,5 @@
 from src.lexer import TokenType
-from src.ast_nodes import ASTNode, FunctionCall
+from src.ast_nodes import ASTNode
 
 class PipelineNode(ASTNode):
     def __init__(self, left, right):
