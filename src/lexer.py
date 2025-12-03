@@ -166,10 +166,11 @@ class Lexer:
 
             if self.current_char == '|':
                 if self.peek() == '>':
+                    line = self.line
+                    column = self.column
                     self.advance()
                     self.advance()
-                    return Token(TokenType.PIPE_GT, '|>', self.line, self.column)
-
+                    return Token(TokenType.PIPE_GT, '|>', line, column)
             self.error(f"Invalid character '{self.current_char}'")
 
         return Token(TokenType.EOF, None, self.line, self.column)
