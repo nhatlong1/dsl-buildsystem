@@ -14,6 +14,8 @@ class TokenType:
     STAR = 'STAR'
     LBRACE = 'LBRACE' # For potential syntax extensions
     RBRACE = 'RBRACE' # For potential syntax extensions
+    LBRACKET = 'LBRACKET' # [
+    RBRACKET = 'RBRACKET' # ]
     PIPE_GT = 'PIPE_GT' # |>
     EOF = 'EOF'
 
@@ -163,6 +165,14 @@ class Lexer:
             if self.current_char == '}':
                 self.advance()
                 return Token(TokenType.RBRACE, '}', self.line, self.column)
+
+            if self.current_char == '[':
+                self.advance()
+                return Token(TokenType.LBRACKET, '[', self.line, self.column)
+
+            if self.current_char == ']':
+                self.advance()
+                return Token(TokenType.RBRACKET, ']', self.line, self.column)
 
             if self.current_char == '|':
                 if self.peek() == '>':

@@ -1,42 +1,37 @@
 from src.lexer import TokenType
 from src.ast_nodes import ASTNode
+from src.interpreter import Interpreter
 
 class PipelineNode(ASTNode):
     def __init__(self, left, right):
         self.left = left
         self.right = right
 
-def parse_pipeline(parser, left):
-    # This is called by the patched parse_statement when it sees |>
-    # left is the already parsed expression (e.g. function call)
+def parse_pipeline(left, parser=None): # Note: Infix handlers in Pratt parser receive `left` arg.
+    # Note: Our Pratt parser implementation `infix(left)` calling convention.
+    # We need access to `parser` instance.
+    # But `register_infix` stores `(fn, precedence)`.
+    # And calls `left = infix(left)`.
+    # Wait, `infix` function in `src/parser.py` is called as `infix(left)`.
+    # It doesn't pass `self` (parser instance) explicitly if `infix` is a bound method.
+    # But here `parse_pipeline` is a standalone function.
+    # We need to change `src/parser.py` to pass `self` to the handler?
+    # Or we use a closure/lambda when registering.
 
-    parser.eat(TokenType.PIPE_GT)
+    # Let's check `src/parser.py`:
+    # `infix, _ = infix_tuple`
+    # `left = infix(left)`
+    # So `infix` must be a callable accepting `left`.
+    # If it needs parser, it must be bound or capture it.
+    pass
 
-    # The right side must be a function call
-    right = parser.parse_function_call()
+# We will define the handler wrapper in `register`.
 
-    # We might have chained pipelines: a |> b |> c
-    # `parse_statement` loop (below) handles this if we return PipelineNode,
-    # and the loop checks for |> again.
-
-    return PipelineNode(left, right)
-
-def execute_pipeline(node, interpreter):
+def execute_pipeline(interpreter, node):
     # Evaluate left side
     left_val = interpreter.visit(node.left)
 
     # Right side is a FunctionCall.
-    # We need to inject `left_val` as the first argument.
-    # But `FunctionCall` in AST has `args` (list of expressions).
-    # We can't easily modify the AST node here because it might be reused?
-    # Actually, AST is usually static.
-    # But here we are executing.
-    # We can create a *new* list of args with the value injected?
-    # But `call_function` expects AST nodes as args because it evaluates them!
-    # `interpreter.visit_FunctionCall` -> `self.context.call_function(name, args, interp)`
-
-    # We have a specific value `left_val`. We need to pass it as an argument.
-    # We can wrap it in a `Literal` node?
     from src.ast_nodes import Literal
 
     arg_node = Literal(left_val)
@@ -48,44 +43,47 @@ def execute_pipeline(node, interpreter):
     return interpreter.context.call_function(node.right.name.name, new_args, interpreter)
 
 def register(parser):
-    # We don't register a keyword extension.
-    # We monkey-patch parse_statement to support infix operator `|>`
+    # Register Infix Operator
+    from src.parser import Precedence
 
-    # We need to access Parser class
-    Parser = parser.__class__
-    original_parse_statement = Parser.parse_statement
+    def pipeline_handler(left):
+        parser.eat(TokenType.PIPE_GT)
+        # Right side usually FunctionCall, but `parse_expression` handles it via LED of `(`.
+        # Wait, right side of pipe `x |> f(...)`.
+        # `f(...)` is an expression.
+        # But pipeline logic often implies `f` is just the name?
+        # Sample: `val |> func(args)`.
+        # `func(args)` is a FunctionCall.
+        # So we parse expression with slightly higher precedence?
+        # Right associativity?
+        # `a |> b |> c` -> `(a |> b) |> c`. Left associative.
+        # So we use `parse_expression(Precedence.PIPELINE)`.
 
-    def parse_statement_with_pipeline(self):
-        # Parse the first part (standard statement/expression)
-        # We replace original_parse_statement logic to allow arbitrary expressions
-        # (needed for literals on left side of pipeline)
+        right = parser.parse_expression(Precedence.PIPELINE)
 
-        # Check extensions first
-        if self.current_token.type == TokenType.IDENTIFIER and self.current_token.value in self.keyword_extensions:
-             return self.keyword_extensions[self.current_token.value](self)
+        # Verify right is FunctionCall?
+        # User might do `x |> print`.
+        # If `print` is Identifier, we might want to support `x |> print` -> `print(x)`.
+        # But typically `|>` injects into first arg.
+        # If right is Identifier `f`, we treat as `f()`.
+        # But `parse_expression` returns `FunctionCall` if `f(...)`.
+        # If just `f`, it returns `Identifier`.
 
-        node = self.parse_expression()
+        from src.ast_nodes import Identifier, FunctionCall
+        if isinstance(right, Identifier):
+            # Transform to FunctionCall(name=right, args=[])
+            right = FunctionCall(name=right, args=[])
 
-        # Check for pipeline operator
-        while self.current_token.type == TokenType.PIPE_GT:
-            node = parse_pipeline(self, node)
+        return PipelineNode(left, right)
 
-        return node
+    # Use register_infix if available
+    if hasattr(parser, 'register_infix'):
+        parser.register_infix(TokenType.PIPE_GT, pipeline_handler, Precedence.PIPELINE)
+    else:
+        print("Warning: Pipeline plugin requires Pratt parser.")
 
-    Parser.parse_statement = parse_statement_with_pipeline
+    # Register Interpreter Visitor
+    if not hasattr(Interpreter, 'plugin_visitors'):
+        Interpreter.plugin_visitors = {}
 
-    # Monkey-patch Interpreter
-    from src.interpreter import Interpreter
-    original_visit = Interpreter.visit
-
-    def visit_PipelineNode(self, node):
-        return execute_pipeline(node, self)
-
-    Interpreter.visit_PipelineNode = visit_PipelineNode
-
-    def new_visit(self, node):
-        if isinstance(node, PipelineNode):
-            return self.visit_PipelineNode(node)
-        return original_visit(self, node)
-
-    Interpreter.visit = new_visit
+    Interpreter.plugin_visitors[PipelineNode] = execute_pipeline
