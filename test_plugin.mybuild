@@ -1,4 +1,2 @@
 
-REPEAT 3 {
-    ECHO("Hello from REPEAT plugin!")
-}
+REPEAT(3, ECHO("Hello from REPEAT plugin!"))
