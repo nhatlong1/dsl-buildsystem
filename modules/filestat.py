@@ -23,7 +23,7 @@ class FileStat:
         self.path = path
         try:
             self.stat: Optional[os.stat_result] = os.stat(path)
-        except:
+        except OSError:
             self.stat = None
 
     @property
