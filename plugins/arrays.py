@@ -6,7 +6,7 @@ class ArrayNode(ASTNode):
         self.items = items # List of AST nodes
 
 def parse_array(parser):
-    # Consumed LBRACKET (via NUD)
+    # Consumes the opening LBRACKET
     parser.eat(TokenType.LBRACKET)
 
     items = []
