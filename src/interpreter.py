@@ -1,11 +1,23 @@
 import os
 import subprocess
 import sys
-from typing import Any, List, Dict, Callable, Optional
+from typing import Any, List, Dict, Callable, Optional, Union
 from src.types import Program, FunctionCall, Literal, Identifier, VariableDeref, PropertyAccess, ASTNode, SymbolType, Flag, Executable
 from src.protocols import InterpreterProtocol, ContextProtocol
 
 class Context(ContextProtocol):
+    """
+    Holds the execution context (symbols, functions, modules) for the interpreter.
+
+    Attributes
+    ----------
+    _symbols : Dict[str, Any]
+        Dictionary of variable names and their values.
+    _functions : Dict[str, Callable]
+        Dictionary of registered function names and their implementations.
+    _modules : Dict[str, Any]
+        Dictionary of loaded modules.
+    """
     def __init__(self):
         self._symbols: Dict[str, Any] = {} # name -> value
         self._functions: Dict[str, Callable] = {} # name -> callable
@@ -13,26 +25,90 @@ class Context(ContextProtocol):
 
     @property
     def symbols(self) -> Dict[str, Any]:
+        """
+        Returns the dictionary of symbols.
+        """
         return self._symbols
 
     @property
     def functions(self) -> Dict[str, Callable]:
+        """
+        Returns the dictionary of functions.
+        """
         return self._functions
 
     @property
     def modules(self) -> Dict[str, Any]:
+        """
+        Returns the dictionary of modules.
+        """
         return self._modules
 
     def get(self, name: str) -> Any:
+        """
+        Retrieves a symbol's value by name.
+
+        Parameters
+        ----------
+        name : str
+            The symbol name.
+
+        Returns
+        -------
+        Any
+            The symbol's value, or None if not found.
+        """
         return self._symbols.get(name)
 
-    def set(self, name: str, value: Any):
+    def set(self, name: str, value: Any) -> None:
+        """
+        Sets a symbol's value.
+
+        Parameters
+        ----------
+        name : str
+            The symbol name.
+        value : Any
+            The value to set.
+        """
         self._symbols[name] = value
 
-    def register_function(self, name: str, func: Callable):
+    def register_function(self, name: str, func: Callable) -> None:
+        """
+        Registers a function in the context.
+
+        Parameters
+        ----------
+        name : str
+            The function name.
+        func : Callable
+            The function implementation.
+        """
         self._functions[name] = func
 
-    def call_function(self, name: str, args: List[Any], interpreter: 'InterpreterProtocol') -> Any:
+    def call_function(self, name: str, args: List[Any], interpreter: InterpreterProtocol) -> Any:
+        """
+        Calls a registered function.
+
+        Parameters
+        ----------
+        name : str
+            The name of the function to call.
+        args : List[Any]
+            The arguments to pass to the function.
+        interpreter : InterpreterProtocol
+            The interpreter instance.
+
+        Returns
+        -------
+        Any
+            The return value of the function.
+
+        Raises
+        ------
+        Exception
+            If the function is not found or callable.
+        """
         if name in self._functions:
             return self._functions[name](args, interpreter)
 
@@ -53,11 +129,25 @@ class Context(ContextProtocol):
         raise Exception(f"Unknown function or callable: {name}")
 
 class Interpreter(InterpreterProtocol):
-    plugin_visitors = {} # Static registry for plugins to register visitors
+    """
+    AST Interpreter/Visitor implementation.
+
+    Attributes
+    ----------
+    plugin_visitors : Dict[Any, Any]
+        Static registry for plugins to register visitors.
+    _context : Context
+        The execution context.
+    visitors : Dict[Any, Callable]
+        Dictionary of AST node types to visitor functions.
+    dry_run : bool
+        If True, executes in dry-run mode (printing instead of executing commands).
+    """
+    plugin_visitors: Dict[Any, Any] = {} # Static registry for plugins to register visitors
 
     def __init__(self, dry_run: bool = False):
         self._context = Context()
-        self.visitors = {} # type -> fn
+        self.visitors: Dict[Any, Callable] = {} # type -> fn
         self.dry_run = dry_run
         self.setup_core_functions()
         self.register_core_visitors()
@@ -66,18 +156,52 @@ class Interpreter(InterpreterProtocol):
 
     @property
     def context(self) -> ContextProtocol:
+        """
+        Returns the interpreter's context.
+        """
         return self._context
 
-    def register_visitor(self, node_type: Any, handler: Any):
+    def register_visitor(self, node_type: Any, handler: Any) -> None:
+        """
+        Registers a visitor function for a specific AST node type.
+
+        Parameters
+        ----------
+        node_type : Any
+            The class of the AST node.
+        handler : Any
+            The visitor function.
+        """
         self.visitors[node_type] = handler
 
     def visit(self, node: ASTNode) -> Any:
+        """
+        Visits an AST node using the registered visitor.
+
+        Parameters
+        ----------
+        node : ASTNode
+            The node to visit.
+
+        Returns
+        -------
+        Any
+            The result of the visit.
+
+        Raises
+        ------
+        Exception
+            If no visitor is registered for the node type.
+        """
         handler = self.visitors.get(type(node))
         if handler:
             return handler(self, node) # Handler signature: (interpreter, node)
         raise Exception(f"No visitor registered for node type: {type(node)}")
 
-    def register_core_visitors(self):
+    def register_core_visitors(self) -> None:
+        """
+        Registers visitors for core AST nodes.
+        """
         self.register_visitor(Program, self.visit_Program)
         self.register_visitor(FunctionCall, self.visit_FunctionCall)
         self.register_visitor(Literal, lambda i, n: n.value)
@@ -85,7 +209,10 @@ class Interpreter(InterpreterProtocol):
         self.register_visitor(VariableDeref, self.visit_VariableDeref)
         self.register_visitor(PropertyAccess, self.visit_PropertyAccess)
 
-    def setup_core_functions(self):
+    def setup_core_functions(self) -> None:
+        """
+        Registers core functions in the context.
+        """
         self.context.register_function('IMPORT', self.func_import)
         self.context.register_function('USING', self.func_using)
         self.context.register_function('DECLARE', self.func_declare)
@@ -106,23 +233,35 @@ class Interpreter(InterpreterProtocol):
 
     # --- Core Visitor Implementations ---
 
-    def visit_Program(self, interpreter, node: Program):
+    def visit_Program(self, interpreter: InterpreterProtocol, node: Program) -> Any:
+        """
+        Visits a Program node.
+        """
         result = None
         for stmt in node.statements:
             result = interpreter.visit(stmt)
         return result
 
-    def visit_FunctionCall(self, interpreter, node: FunctionCall):
+    def visit_FunctionCall(self, interpreter: InterpreterProtocol, node: FunctionCall) -> Any:
+        """
+        Visits a FunctionCall node.
+        """
         func_name = node.name.name
-        return interpreter.context.call_function(func_name, node.args, interpreter)
+        return interpreter.context.call_function(func_name, node.args, interpreter) # type: ignore
 
-    def visit_Identifier(self, interpreter, node: Identifier):
+    def visit_Identifier(self, interpreter: InterpreterProtocol, node: Identifier) -> Any:
+        """
+        Visits an Identifier node.
+        """
         val = interpreter.context.get(node.name)
         if val is not None:
             return val
         return node.name
 
-    def visit_VariableDeref(self, interpreter, node: VariableDeref):
+    def visit_VariableDeref(self, interpreter: InterpreterProtocol, node: VariableDeref) -> Any:
+        """
+        Visits a VariableDeref node.
+        """
         target = node.target
         if isinstance(target, Identifier):
              return interpreter.context.get(target.name)
@@ -134,7 +273,10 @@ class Interpreter(InterpreterProtocol):
              return target.value
         return interpreter.visit(target)
 
-    def visit_PropertyAccess(self, interpreter, node: PropertyAccess):
+    def visit_PropertyAccess(self, interpreter: InterpreterProtocol, node: PropertyAccess) -> Any:
+        """
+        Visits a PropertyAccess node.
+        """
         obj = interpreter.visit(node.target)
         prop = node.property_name.name
 
@@ -147,6 +289,19 @@ class Interpreter(InterpreterProtocol):
         return None
 
     def interpolate_string(self, s: str) -> str:
+        """
+        Interpolates variables in a string (e.g. "$VAR").
+
+        Parameters
+        ----------
+        s : str
+            The string to interpolate.
+
+        Returns
+        -------
+        str
+            The interpolated string.
+        """
         import re
         def replace(match):
             name = match.group(1)
@@ -155,20 +310,42 @@ class Interpreter(InterpreterProtocol):
         return re.sub(r'\$([a-zA-Z_]\w*)', replace, s)
 
     def evaluate_args(self, args_nodes: List[ASTNode]) -> List[Any]:
+        """
+        Evaluates a list of argument nodes.
+
+        Parameters
+        ----------
+        args_nodes : List[ASTNode]
+            The argument nodes.
+
+        Returns
+        -------
+        List[Any]
+            The evaluated arguments.
+        """
         return [self.visit(arg) for arg in args_nodes]
 
     # --- Core Functions ---
 
-    def func_array(self, args, interpreter):
+    def func_array(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> List[Any]:
+        """
+        Creates an array from arguments.
+        """
         # ARRAY(item1, item2, ...) -> Returns list
         return interpreter.evaluate_args(args)
 
-    def func_import(self, args, interpreter):
+    def func_import(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> None:
+        """
+        Imports a module.
+        """
         evaluated_args = interpreter.evaluate_args(args)
         # Assuming args[0] handles the import side-effect logic (like BUILTIN)
         pass
 
-    def func_using(self, args, interpreter):
+    def func_using(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> None:
+        """
+        Brings module symbols into the current scope.
+        """
         evaluated_args = interpreter.evaluate_args(args)
         module_or_name = evaluated_args[0]
         module = module_or_name
@@ -181,7 +358,10 @@ class Interpreter(InterpreterProtocol):
         else:
              print(f"Warning: Module {module_or_name} not found or invalid.")
 
-    def func_builtin(self, args, interpreter):
+    def func_builtin(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> Any:
+        """
+        Loads a builtin module.
+        """
         evaluated_args = interpreter.evaluate_args(args)
         name = evaluated_args[0]
         if name == 'FILESTAT':
@@ -196,16 +376,13 @@ class Interpreter(InterpreterProtocol):
             return mod
         return None
 
-    def func_declare(self, args, interpreter):
+    def func_declare(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> None:
+        """
+        Declares a symbol (VARIABLE, FLAGS, EXECUTABLE).
+        """
         type_node = args[0]
         name_node = args[1]
         decl_type = interpreter.visit(type_node) # Should resolve to string or value
-
-        # Compatibility: if decl_type is string "VARIABLE", etc.
-        # But if we use SymbolType enum, `visit` on Identifier might return the Enum member if it was in Context?
-        # Actually `SymbolType` is not in context by default unless we put it there?
-        # The parser parses IDENTIFIER 'VARIABLE'. `visit(Identifier)` returns 'VARIABLE' string unless it's in context.
-        # So it is likely still a string 'VARIABLE'.
 
         if isinstance(name_node, Identifier):
             name = name_node.name
@@ -221,7 +398,10 @@ class Interpreter(InterpreterProtocol):
         elif decl_type == SymbolType.EXECUTABLE.value or decl_type == 'EXECUTABLE':
             interpreter.context.set(name, Executable(name, vals[0], vals[1], vals[2]))
 
-    def func_set(self, args, interpreter):
+    def func_set(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> None:
+        """
+        Sets an existing variable's value.
+        """
         name_node = args[0]
         if isinstance(name_node, Identifier):
             name = name_node.name
@@ -230,7 +410,10 @@ class Interpreter(InterpreterProtocol):
         val = interpreter.visit(args[1])
         interpreter.context.set(name, val)
 
-    def func_execute(self, args, interpreter):
+    def func_execute(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> None:
+        """
+        Executes a command.
+        """
         evaluated_args = []
         for arg in args:
             evaluated_args.append(interpreter.visit(arg))
@@ -257,7 +440,7 @@ class Interpreter(InterpreterProtocol):
 
         exe_name = exe
         if isinstance(exe, Executable):
-            exe_name = exe.name
+            exe_name = exe.path if exe.path else exe.name
 
         flat_args = []
         for a in final_args:
@@ -279,14 +462,20 @@ class Interpreter(InterpreterProtocol):
         except Exception as e:
             print(f"Execution failed: {e}")
 
-    def func_if(self, args, interpreter):
+    def func_if(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> None:
+        """
+        Conditional execution (if/then/else).
+        """
         cond = interpreter.visit(args[0])
         if cond:
             interpreter.visit(args[1])
         elif len(args) > 2:
             interpreter.visit(args[2])
 
-    def func_ifany(self, args, interpreter):
+    def func_ifany(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> None:
+        """
+        Executes actions if any condition is met.
+        """
         triggered = False
         for arg in args:
             if isinstance(arg, FunctionCall):
@@ -303,20 +492,32 @@ class Interpreter(InterpreterProtocol):
                 if triggered:
                     interpreter.visit(arg)
 
-    def func_echo(self, args, interpreter):
+    def func_echo(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> bool:
+        """
+        Prints arguments to stdout.
+        """
         vals = interpreter.evaluate_args(args)
         # ECHO is executed even in dry-run?
         # "Exception: Dry-run may execute ECHO commands, not anything else."
         print(" ".join(map(str, vals)))
         return True
 
-    def func_not(self, args, interpreter):
+    def func_not(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> bool:
+        """
+        Logical NOT.
+        """
         return not interpreter.visit(args[0])
 
-    def func_neq(self, args, interpreter):
+    def func_neq(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> bool:
+        """
+        Logical NEQ (Not Equal).
+        """
         vals = interpreter.evaluate_args(args)
         return vals[0] != vals[1]
 
-    def func_exists(self, args, interpreter):
+    def func_exists(self, args: List[ASTNode], interpreter: InterpreterProtocol) -> bool:
+        """
+        Checks if a file exists.
+        """
         path = interpreter.visit(args[0])
         return os.path.exists(str(path))

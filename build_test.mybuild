@@ -1,0 +1,20 @@
+IMPORT(BUILTIN(FILESTAT))
+IMPORT(BUILTIN(BUILDCACHE))
+
+USING(FILESTAT, *)
+USING(BUILDCACHE, *)
+
+DECLARE(EXECUTABLE, gpp, "GNU C++ Compiler", "winlibs.com", "g++")
+
+IF(
+	NEQ(
+		STAT("quicksort.cpp").LASTMODIFIEDDATE,
+		CACHE("quicksort.cpp").LASTMODIFIEDDATE
+	),
+	ARRAY(
+		EXECUTE(gpp, "quicksort.cpp", "-o", "quicksort"),
+		UPDATE("quicksort.cpp"),
+        WRITEBUILDCACHE()
+	),
+	ECHO("quicksort.cpp up to date")
+)
