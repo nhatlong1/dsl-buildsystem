@@ -55,7 +55,7 @@ class Flag:
 
     def apply(self, args: List[Any]) -> str:
         if len(args) != self.arity:
-            raise Exception(f"Flag {self.name} expects {self.arity} arguments, got {len(args)}")
+            raise ValueError(f"Flag {self.name} expects {self.arity} arguments, got {len(args)}")
 
         result = self.template
         for i, arg in enumerate(args):
