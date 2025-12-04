@@ -9,9 +9,9 @@ WRITEBUILDCACHE()
 /*
  WRITEBUILDCACHE()
  STAT(file)
- 0. tao cache neu khong ton tai
- Them cai nay -> 1. ghi hoac cap nhat record cua file vao cache
- 2. tra ve record cua file
+ 0. Create cache if it does not exist
+ This adds -> 1. write or update record of the file in the cache
+ 2. return the record of the file
 */
 
 DECLARE(EXECUTABLE, gpp, "GNU C++ Compiler", "winlibs.com", NULL)
