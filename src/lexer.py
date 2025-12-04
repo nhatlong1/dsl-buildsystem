@@ -1,19 +1,28 @@
 import re
 from typing import Optional, Any
-from src.types import TokenType
+from src.types import TokenType, Token
 from src.protocols import LexerProtocol
 
-class Token:
-    def __init__(self, type: TokenType, value: Any, line: int, column: int):
-        self.type = type
-        self.value = value
-        self.line = line
-        self.column = column
-
-    def __repr__(self):
-        return f"Token({self.type}, {repr(self.value)}, line={self.line}, col={self.column})"
-
 class Lexer(LexerProtocol):
+    """
+    Lexer for tokenizing the input text.
+
+    Parameters
+    ----------
+    text : str
+        The input text to tokenize.
+
+    Attributes
+    ----------
+    pos : int
+        The current position in the text.
+    line : int
+        The current line number.
+    column : int
+        The current column number.
+    current_char : Optional[str]
+        The character at the current position.
+    """
     def __init__(self, text: str):
         self.text = text
         self.pos = 0
@@ -21,10 +30,26 @@ class Lexer(LexerProtocol):
         self.column = 1
         self.current_char: Optional[str] = self.text[self.pos] if self.text else None
 
-    def error(self, msg: str):
+    def error(self, msg: str) -> None:
+        """
+        Raises an exception for a lexing error.
+
+        Parameters
+        ----------
+        msg : str
+            The error message.
+
+        Raises
+        ------
+        Exception
+            Always raised with the error message and location.
+        """
         raise Exception(f"Lexer error at line {self.line}, column {self.column}: {msg}")
 
     def advance(self) -> None:
+        """
+        Advances the current position pointer and updates the current character.
+        """
         if self.current_char == '\n':
             self.line += 1
             self.column = 0
@@ -36,16 +61,30 @@ class Lexer(LexerProtocol):
             self.current_char = None
 
     def peek(self) -> Optional[str]:
+        """
+        Returns the next character without advancing the position.
+
+        Returns
+        -------
+        Optional[str]
+            The next character, or None if at the end of the text.
+        """
         peek_pos = self.pos + 1
         if peek_pos < len(self.text):
             return self.text[peek_pos]
         return None
 
-    def skip_whitespace(self):
+    def skip_whitespace(self) -> None:
+        """
+        Skips over whitespace characters.
+        """
         while self.current_char is not None and self.current_char.isspace():
             self.advance()
 
-    def skip_comment(self):
+    def skip_comment(self) -> None:
+        """
+        Skips over comments (/* ... */).
+        """
         # Comments start with /* and end with */
         self.advance() # /
         self.advance() # *
@@ -58,6 +97,14 @@ class Lexer(LexerProtocol):
         self.error("Unterminated comment")
 
     def number(self) -> int:
+        """
+        Parses a number from the input.
+
+        Returns
+        -------
+        int
+            The parsed integer value.
+        """
         result = ''
         while self.current_char is not None and self.current_char.isdigit():
             result += self.current_char
@@ -65,6 +112,14 @@ class Lexer(LexerProtocol):
         return int(result)
 
     def string(self) -> str:
+        """
+        Parses a string literal from the input.
+
+        Returns
+        -------
+        str
+            The parsed string value.
+        """
         result = ''
         self.advance() # skip opening quote
         while self.current_char is not None and self.current_char != '"':
@@ -72,7 +127,7 @@ class Lexer(LexerProtocol):
                 self.advance()
                 if self.current_char in ['"', '\\', 'n', 't', 'r', '0']:
                     escape_map = {'n': '\n', 't': '\t', 'r': '\r', '0': '\0', '"': '"', '\\': '\\'}
-                    result += escape_map.get(self.current_char, self.current_char)
+                    result += escape_map.get(self.current_char, self.current_char) # type: ignore
                 else:
                     result += self.current_char
             else:
@@ -85,6 +140,14 @@ class Lexer(LexerProtocol):
         return result
 
     def identifier(self) -> Token:
+        """
+        Parses an identifier or keyword.
+
+        Returns
+        -------
+        Token
+            The parsed identifier token (or specific keyword token).
+        """
         result = ''
         while self.current_char is not None and (self.current_char.isalnum() or self.current_char == '_'):
             result += self.current_char
@@ -100,6 +163,14 @@ class Lexer(LexerProtocol):
         return Token(TokenType.IDENTIFIER, result, self.line, self.column)
 
     def get_next_token(self) -> Token:
+        """
+        Retrieves the next token from the input.
+
+        Returns
+        -------
+        Token
+            The next token.
+        """
         while self.current_char is not None:
             if self.current_char.isspace():
                 self.skip_whitespace()

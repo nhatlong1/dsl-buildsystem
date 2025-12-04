@@ -73,3 +73,28 @@ Executes actions if *any* of the conditions are true.
 
 ### `ECHO(Args...)`
 Prints to stdout.
+
+### `ARRAY(Item...)`
+Creates an array (list) of items.
+```
+DECLARE(VARIABLE, MY_LIST, ARRAY(1, 2, 3))
+```
+
+### Logical Functions
+- `NOT(Cond)`: Returns logical negation.
+- `NEQ(A, B)`: Returns true if A is not equal to B.
+- `EXISTS(Path)`: Returns true if the path exists.
+
+## Builtin Modules
+
+### FILESTAT
+Provides file status information.
+- `STAT(Path)`: Returns a `FileStat` object.
+    - `.LASTMODIFIEDDATE`: The last modification timestamp.
+- `EXISTS(Path)`: Checks existence (alias to core `EXISTS`).
+
+### BUILDCACHE
+Provides a simple caching mechanism for build artifacts.
+- `CACHE(Path)`: Returns a `CacheEntry` object from the cache.
+    - `.LASTMODIFIEDDATE`: The recorded timestamp in the cache.
+- `WRITEBUILDCACHE()`: Saves the current cache state to disk (`.buildcache`).
