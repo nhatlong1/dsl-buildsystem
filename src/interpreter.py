@@ -92,7 +92,7 @@ class Interpreter:
     def visit(self, node: ASTNode) -> Any:
         handler = self.visitors.get(type(node))
         if handler:
-            return handler(self, node)
+            return handler(self, self, node)
         raise Exception(f"No visitor registered for node type: {type(node)}")
 
     def register_core_visitors(self):
