@@ -21,8 +21,8 @@ class BuildCache:
             try:
                 with open(CACHE_FILE, 'r') as f:
                     self.cache = json.load(f)
-            except:
-                pass
+            except (IOError, json.JSONDecodeError) as e:
+                print(f"Warning: Could not load cache from {CACHE_FILE}: {e}")
 
     def get_entry(self, path: str) -> Dict[str, Any]:
         """
