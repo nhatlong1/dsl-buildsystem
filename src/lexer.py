@@ -1,26 +1,10 @@
 import re
-
-class TokenType:
-    IDENTIFIER = 'IDENTIFIER'
-    STRING = 'STRING'
-    NUMBER = 'NUMBER'
-    BOOLEAN = 'BOOLEAN'
-    NULL = 'NULL'
-    LPAREN = 'LPAREN'
-    RPAREN = 'RPAREN'
-    COMMA = 'COMMA'
-    DOT = 'DOT'
-    AT = 'AT'
-    STAR = 'STAR'
-    LBRACE = 'LBRACE' # For potential syntax extensions
-    RBRACE = 'RBRACE' # For potential syntax extensions
-    LBRACKET = 'LBRACKET' # [
-    RBRACKET = 'RBRACKET' # ]
-    PIPE_GT = 'PIPE_GT' # |>
-    EOF = 'EOF'
+from typing import Optional, Any
+from src.types import TokenType
+from src.protocols import LexerProtocol
 
 class Token:
-    def __init__(self, type, value, line, column):
+    def __init__(self, type: TokenType, value: Any, line: int, column: int):
         self.type = type
         self.value = value
         self.line = line
@@ -29,18 +13,18 @@ class Token:
     def __repr__(self):
         return f"Token({self.type}, {repr(self.value)}, line={self.line}, col={self.column})"
 
-class Lexer:
-    def __init__(self, text):
+class Lexer(LexerProtocol):
+    def __init__(self, text: str):
         self.text = text
         self.pos = 0
         self.line = 1
         self.column = 1
-        self.current_char = self.text[self.pos] if self.text else None
+        self.current_char: Optional[str] = self.text[self.pos] if self.text else None
 
-    def error(self, msg):
+    def error(self, msg: str):
         raise Exception(f"Lexer error at line {self.line}, column {self.column}: {msg}")
 
-    def advance(self):
+    def advance(self) -> None:
         if self.current_char == '\n':
             self.line += 1
             self.column = 0
@@ -51,7 +35,7 @@ class Lexer:
         else:
             self.current_char = None
 
-    def peek(self):
+    def peek(self) -> Optional[str]:
         peek_pos = self.pos + 1
         if peek_pos < len(self.text):
             return self.text[peek_pos]
@@ -73,14 +57,14 @@ class Lexer:
             self.advance()
         self.error("Unterminated comment")
 
-    def number(self):
+    def number(self) -> int:
         result = ''
         while self.current_char is not None and self.current_char.isdigit():
             result += self.current_char
             self.advance()
         return int(result)
 
-    def string(self):
+    def string(self) -> str:
         result = ''
         self.advance() # skip opening quote
         while self.current_char is not None and self.current_char != '"':
@@ -100,7 +84,7 @@ class Lexer:
         self.advance() # skip closing quote
         return result
 
-    def identifier(self):
+    def identifier(self) -> Token:
         result = ''
         while self.current_char is not None and (self.current_char.isalnum() or self.current_char == '_'):
             result += self.current_char
@@ -115,7 +99,7 @@ class Lexer:
 
         return Token(TokenType.IDENTIFIER, result, self.line, self.column)
 
-    def get_next_token(self):
+    def get_next_token(self) -> Token:
         while self.current_char is not None:
             if self.current_char.isspace():
                 self.skip_whitespace()

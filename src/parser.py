@@ -1,27 +1,22 @@
 from src.lexer import Lexer, TokenType
-from src.ast_nodes import Program, FunctionCall, Literal, Identifier, VariableDeref, PropertyAccess
+from src.types import ASTNode, Program, FunctionCall, Literal, Identifier, VariableDeref, PropertyAccess, Precedence
+from src.protocols import ParserProtocol, LexerProtocol
 import importlib
 import os
 import sys
+from typing import Callable, Tuple, Dict, Any, Union
 
-class Precedence:
-    LOWEST = 0
-    PIPELINE = 10
-    DOT = 30
-    PREFIX = 40
-    CALL = 50
-
-class Parser:
-    def __init__(self, lexer):
+class Parser(ParserProtocol):
+    def __init__(self, lexer: LexerProtocol):
         self.lexer = lexer
         self.current_token = self.lexer.get_next_token()
 
         # Pratt Parser tables
-        self.prefix_parse_fns = {} # token_type -> fn
-        self.infix_parse_fns = {}  # token_type -> (fn, precedence)
+        self.prefix_parse_fns: Dict[TokenType, Callable[[], ASTNode]] = {}
+        self.infix_parse_fns: Dict[TokenType, Tuple[Callable[[ASTNode], ASTNode], int]] = {}
 
         # Keyword/Token handlers (for special Identifiers like FOR)
-        self.token_handlers = {}   # token_value -> fn
+        self.token_handlers: Dict[str, Callable[[Any], ASTNode]] = {}
 
         # Compatibility for old plugins
         self.keyword_extensions = {}
@@ -35,7 +30,7 @@ class Parser:
         self.register_prefix(TokenType.NUMBER, self.parse_literal)
         self.register_prefix(TokenType.BOOLEAN, self.parse_literal)
         self.register_prefix(TokenType.NULL, self.parse_literal)
-        self.register_prefix(TokenType.STAR, self.parse_identifier_star) # Treat * as identifier? Or literal?
+        self.register_prefix(TokenType.STAR, self.parse_identifier_star)
 
         # Grouping
         self.register_prefix(TokenType.LPAREN, self.parse_grouped_expression)
@@ -47,15 +42,13 @@ class Parser:
         self.register_infix(TokenType.LPAREN, self.parse_call_expression, Precedence.CALL)
         self.register_infix(TokenType.DOT, self.parse_property_access, Precedence.DOT)
 
-        # Note: PIPELINE will be registered by plugin, but we could add core support if we wanted.
-
-    def register_prefix(self, token_type, fn):
+    def register_prefix(self, token_type: TokenType, fn: Callable[[], ASTNode]):
         self.prefix_parse_fns[token_type] = fn
 
-    def register_infix(self, token_type, fn, precedence):
+    def register_infix(self, token_type: TokenType, fn: Callable[[ASTNode], ASTNode], precedence: int):
         self.infix_parse_fns[token_type] = (fn, precedence)
 
-    def register_token_handler(self, token_value, fn):
+    def register_token_handler(self, token_value: str, fn: Callable[[Any], ASTNode]):
         self.token_handlers[token_value] = fn
 
     # Compatibility method
@@ -66,7 +59,7 @@ class Parser:
     def error(self, msg):
         raise Exception(f"Parser error at line {self.current_token.line}: {msg}")
 
-    def eat(self, token_type):
+    def eat(self, token_type: TokenType):
         if self.current_token.type == token_type:
             self.current_token = self.lexer.get_next_token()
         else:
@@ -78,17 +71,16 @@ class Parser:
             return self.infix_parse_fns[token_type][1]
         return Precedence.LOWEST
 
-    def parse_program(self):
+    def parse_program(self) -> Program:
         statements = []
         while self.current_token.type != TokenType.EOF:
             statements.append(self.parse_statement())
         return Program(statements=statements)
 
-    def parse_statement(self):
-        # In this language, statements are just expressions (function calls usually)
+    def parse_statement(self) -> ASTNode:
         return self.parse_expression(Precedence.LOWEST)
 
-    def parse_expression(self, precedence):
+    def parse_expression(self, precedence: int) -> ASTNode:
         token_type = self.current_token.type
 
         # Prefix (NUD)
@@ -112,7 +104,7 @@ class Parser:
 
     # --- NUD Handlers ---
 
-    def parse_identifier(self):
+    def parse_identifier(self) -> ASTNode:
         # Check for special token handlers (Keywords)
         if self.current_token.value in self.token_handlers:
             return self.token_handlers[self.current_token.value](self)
@@ -121,57 +113,31 @@ class Parser:
         self.eat(TokenType.IDENTIFIER)
         return Identifier(name=token.value)
 
-    def parse_identifier_star(self):
+    def parse_identifier_star(self) -> Identifier:
         self.eat(TokenType.STAR)
         return Identifier(name='*')
 
-    def parse_literal(self):
+    def parse_literal(self) -> Literal:
         token = self.current_token
         self.eat(token.type)
         return Literal(value=token.value)
 
-    def parse_grouped_expression(self):
+    def parse_grouped_expression(self) -> ASTNode:
         self.eat(TokenType.LPAREN)
         exp = self.parse_expression(Precedence.LOWEST)
         self.eat(TokenType.RPAREN)
         return exp
 
-    def parse_deref(self):
+    def parse_deref(self) -> VariableDeref:
         self.eat(TokenType.AT)
-        # Parse the next atom/expression.
-        # Usually deref applies to an atom (ID, String, Call).
-        # We use Precedence.PREFIX?
-        # If we use LOWEST, we might eat too much?
-        # @A.B -> VariableDeref(target=PropAccess(A, B)) ?
-        # Or PropertyAccess(VariableDeref(A), B) ?
-        # Existing parser: `parse_term` handles `@`. `parse_expression` handles `.`.
-        # `parse_expression` calls `parse_term`.
-        # So `@A.B` -> `term` is `@A`. Then `.` B.
-        # So `PropAccess(VariableDeref(A), B)`.
-        # To achieve this in Pratt:
-        # `parse_deref` calls `parse_expression(PREFIX)`.
-        # If `DOT` has precedence < PREFIX, it won't be consumed by `parse_expression(PREFIX)`.
-        # DOT is 30. PREFIX is 40.
-        # So `parse_expression(40)` will parse `A`. Then see `.`. 30 < 40. Stop.
-        # Return `VariableDeref(A)`.
-        # Then the outer loop (which called `parse_deref` as NUD, likely `parse_expression(LOWEST)`)
-        # sees `left = VariableDeref(A)`.
-        # Next token is `.`. Precedence 30 > 0.
-        # Calls `parse_property_access(left)`.
-        # Result: `PropertyAccess(VariableDeref(A), B)`.
-        # This matches old behavior.
-
         target = self.parse_expression(Precedence.PREFIX)
         return VariableDeref(target=target)
 
     # --- LED Handlers ---
 
-    def parse_call_expression(self, left):
-        # left is the function name (Identifier or whatever evaluated before LPAREN)
-        # Check if left is valid for call? (Identifier or PropertyAccess)
-        if not isinstance(left, (Identifier, PropertyAccess, VariableDeref)):
-             # Actually grammar allows calling anything? `@"cmd"(...)`?
-             pass
+    def parse_call_expression(self, left: ASTNode) -> FunctionCall:
+        if not isinstance(left, Identifier):
+             self.error(f"Function call must be on an Identifier, but got {type(left)}")
 
         self.eat(TokenType.LPAREN)
         args = []
@@ -179,56 +145,15 @@ class Parser:
             args = self.parse_arg_list()
         self.eat(TokenType.RPAREN)
 
-        # `left` is the `name`. But `FunctionCall` expects `Identifier`.
-        # If `left` is `PropertyAccess`, is it a method call?
-        # The AST `FunctionCall` definition: `name: Identifier`.
-        # This implies we can only call simple Identifiers?
-        # Old parser: `parse_function_call` -> `name = self.parse_identifier()`.
-        # So yes, old parser restricted calls to simple identifiers.
-        # But wait, `IF(...)` is a call.
-        # What about `OBJ.FUNC(...)`?
-        # Old parser `parse_expression` loop handles `.` property access.
-        # But `parse_statement` calls `parse_function_call` OR extension.
-        # `parse_function_call` starts with `Identifier`.
-        # So `OBJ.FUNC(...)` was NOT reachable in `parse_statement` unless `OBJ` was an extension?
-        # Wait. `parse_statement` -> `parse_function_call`.
-        # `parse_function_call` -> parses ID, then args.
-        # It does NOT parse property access.
-        # So `OBJ.FUNC` was likely invalid as a statement in old parser?
-        # Unless `OBJ` is a function returning an object, and we access property?
-        # `SELECT(STAT(...))`
-        # `STAT` returns object. `SELECT` is function.
-        # `STAT(...).PROP` -> `Expression` handles `.`.
-        # But `parse_statement` calls `parse_function_call`.
-        # `parse_function_call` parses `ID (...)`.
-        # It returns `FunctionCall`.
-        # It does not continue to parse `.`.
-        # So `STAT(...).PROP` as a statement was NOT possible?
-        # Only as an argument inside another call.
-        # Because `parse_arg_list` calls `parse_expression`.
-        # `parse_expression` handles `.`.
-
-        # New Pratt parser allows `OBJ.FUNC(...)` if we treat `Call` as infix.
-        # But we must respect the AST node definition `FunctionCall(name: Identifier)`.
-        # If we allow `Call` on `PropertyAccess`, we need to change AST or map it.
-        # Given existing AST, I should probably enforce `left` is `Identifier`.
-        # Or maybe the user wants to relax this?
-        # "The `parse_statement_with_pipeline` function completely replaces `Parser.parse_statement`... Maybe we change to a Pratt parser?"
-        # I will assume `FunctionCall` requires Identifier name for now to match AST.
-        # But `left` in `parse_call_expression` is the expression before `(`.
-
-        if not isinstance(left, Identifier):
-             self.error(f"Function call must be on an Identifier, but got {type(left)}")
-
         return FunctionCall(name=left, args=args)
 
-    def parse_property_access(self, left):
+    def parse_property_access(self, left: ASTNode) -> PropertyAccess:
         self.eat(TokenType.DOT)
         prop_name = self.parse_identifier_node() # Parse identifier explicitly
         return PropertyAccess(target=left, property_name=prop_name)
 
     # Helper for parsing identifier as Node (not NUD)
-    def parse_identifier_node(self):
+    def parse_identifier_node(self) -> Identifier:
         token = self.current_token
         self.eat(TokenType.IDENTIFIER)
         return Identifier(name=token.value)
@@ -253,7 +178,7 @@ def load_plugins(parser, plugin_dir='plugins'):
                 module = importlib.import_module(f'{plugin_dir}.{module_name}')
                 if hasattr(module, 'register'):
                     module.register(parser)
-                    print(f"Loaded plugin: {module_name}")
+                    # print(f"Loaded plugin: {module_name}") # Optional logging
             except Exception as e:
                 print(f"Failed to load plugin {module_name}: {e}")
 
@@ -277,7 +202,6 @@ def pretty_print(node, indent=0):
     elif isinstance(node, PropertyAccess):
         print(f"{space}PropertyAccess: .{node.property_name.name}")
         pretty_print(node.target, indent + 1)
-    # New AST Nodes (will be added)
     elif node.__class__.__name__ == 'PipelineNode':
         print(f"{space}PipelineNode (|>)")
         pretty_print(node.left, indent + 1)
@@ -286,11 +210,10 @@ def pretty_print(node, indent=0):
         print(f"{space}ForLoopNode")
         print(f"{space}  Var: {node.var_name}")
         print(f"{space}  Items:")
-        # If items is a list (old loop)
         if isinstance(node.items, list):
              for item in node.items:
                  pretty_print(item, indent + 2)
-        else: # New loop (Expression)
+        else:
              pretty_print(node.items, indent + 2)
         print(f"{space}  Body:")
         pretty_print(node.body, indent + 2)
@@ -300,13 +223,3 @@ def pretty_print(node, indent=0):
             pretty_print(item, indent + 1)
     else:
         print(f"{space}Unknown Node: {node}")
-
-if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        with open(sys.argv[1], 'r') as f:
-            text = f.read()
-        lexer = Lexer(text)
-        parser = Parser(lexer)
-        load_plugins(parser)
-        ast = parser.parse_program()
-        pretty_print(ast)
