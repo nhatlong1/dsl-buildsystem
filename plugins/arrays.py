@@ -1,5 +1,4 @@
-from src.lexer import TokenType
-from src.ast_nodes import ASTNode
+from src.types import TokenType, ASTNode, Precedence
 from src.interpreter import Interpreter
 
 class ArrayNode(ASTNode):
@@ -14,7 +13,6 @@ def parse_array(parser):
     if parser.current_token.type != TokenType.RBRACKET:
         # Parse expression list
         # Similar to parse_arg_list but using ] as terminator check
-        from src.parser import Precedence
         items.append(parser.parse_expression(Precedence.LOWEST))
         while parser.current_token.type == TokenType.COMMA:
             parser.eat(TokenType.COMMA)

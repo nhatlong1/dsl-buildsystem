@@ -1,63 +1,40 @@
 import os
 import subprocess
 import sys
-from typing import Any, List, Dict, Callable
-from src.ast_nodes import Program, FunctionCall, Literal, Identifier, VariableDeref, PropertyAccess, ASTNode
+from typing import Any, List, Dict, Callable, Optional
+from src.types import Program, FunctionCall, Literal, Identifier, VariableDeref, PropertyAccess, ASTNode, SymbolType, Flag, Executable
+from src.protocols import InterpreterProtocol, ContextProtocol
 
-class SymbolType:
-    VARIABLE = 'VARIABLE'
-    FLAGS = 'FLAGS'
-    EXECUTABLE = 'EXECUTABLE'
-    MACRO = 'MACRO'
-
-class Flag:
-    def __init__(self, name, template):
-        self.name = name
-        self.template = template
-        # Determine arity by finding max $N
-        self.arity = 0
-        import re
-        matches = re.findall(r'\$(\d+)', template)
-        if matches:
-            self.arity = max(map(int, matches))
-
-    def apply(self, args):
-        if len(args) != self.arity:
-            raise Exception(f"Flag {self.name} expects {self.arity} arguments, got {len(args)}")
-
-        result = self.template
-        for i, arg in enumerate(args):
-            result = result.replace(f"${i+1}", str(arg))
-        return result
-
-    def __repr__(self):
-        return f"<Flag {self.name} arity={self.arity}>"
-
-class Executable:
-    def __init__(self, name, description, source, path):
-        self.name = name
-        self.description = description
-        self.source = source
-        self.path = path
-
-class Context:
+class Context(ContextProtocol):
     def __init__(self):
-        self.symbols = {} # name -> value (Variable, Flag, Executable, or generic value)
-        self.functions = {} # name -> callable
-        self.modules = {} # name -> module object
+        self._symbols: Dict[str, Any] = {} # name -> value
+        self._functions: Dict[str, Callable] = {} # name -> callable
+        self._modules: Dict[str, Any] = {} # name -> module object
 
-    def get(self, name):
-        return self.symbols.get(name)
+    @property
+    def symbols(self) -> Dict[str, Any]:
+        return self._symbols
 
-    def set(self, name, value):
-        self.symbols[name] = value
+    @property
+    def functions(self) -> Dict[str, Callable]:
+        return self._functions
 
-    def register_function(self, name, func):
-        self.functions[name] = func
+    @property
+    def modules(self) -> Dict[str, Any]:
+        return self._modules
 
-    def call_function(self, name, args, interpreter):
-        if name in self.functions:
-            return self.functions[name](args, interpreter)
+    def get(self, name: str) -> Any:
+        return self._symbols.get(name)
+
+    def set(self, name: str, value: Any):
+        self._symbols[name] = value
+
+    def register_function(self, name: str, func: Callable):
+        self._functions[name] = func
+
+    def call_function(self, name: str, args: List[Any], interpreter: 'InterpreterProtocol') -> Any:
+        if name in self._functions:
+            return self._functions[name](args, interpreter)
 
         # Check if name is a Variable that calls a Flag (Mechanism 1)
         val = self.get(name)
@@ -75,24 +52,29 @@ class Context:
 
         raise Exception(f"Unknown function or callable: {name}")
 
-class Interpreter:
+class Interpreter(InterpreterProtocol):
     plugin_visitors = {} # Static registry for plugins to register visitors
 
-    def __init__(self):
-        self.context = Context()
+    def __init__(self, dry_run: bool = False):
+        self._context = Context()
         self.visitors = {} # type -> fn
+        self.dry_run = dry_run
         self.setup_core_functions()
         self.register_core_visitors()
         # Register plugin visitors
         self.visitors.update(Interpreter.plugin_visitors)
 
-    def register_visitor(self, node_type, handler):
+    @property
+    def context(self) -> ContextProtocol:
+        return self._context
+
+    def register_visitor(self, node_type: Any, handler: Any):
         self.visitors[node_type] = handler
 
     def visit(self, node: ASTNode) -> Any:
         handler = self.visitors.get(type(node))
         if handler:
-            return handler(self, self, node)
+            return handler(self, node) # Handler signature: (interpreter, node)
         raise Exception(f"No visitor registered for node type: {type(node)}")
 
     def register_core_visitors(self):
@@ -164,7 +146,7 @@ class Interpreter:
              return obj.get(prop)
         return None
 
-    def interpolate_string(self, s):
+    def interpolate_string(self, s: str) -> str:
         import re
         def replace(match):
             name = match.group(1)
@@ -172,7 +154,7 @@ class Interpreter:
             return str(val) if val is not None else match.group(0)
         return re.sub(r'\$([a-zA-Z_]\w*)', replace, s)
 
-    def evaluate_args(self, args_nodes):
+    def evaluate_args(self, args_nodes: List[ASTNode]) -> List[Any]:
         return [self.visit(arg) for arg in args_nodes]
 
     # --- Core Functions ---
@@ -217,7 +199,13 @@ class Interpreter:
     def func_declare(self, args, interpreter):
         type_node = args[0]
         name_node = args[1]
-        decl_type = interpreter.visit(type_node)
+        decl_type = interpreter.visit(type_node) # Should resolve to string or value
+
+        # Compatibility: if decl_type is string "VARIABLE", etc.
+        # But if we use SymbolType enum, `visit` on Identifier might return the Enum member if it was in Context?
+        # Actually `SymbolType` is not in context by default unless we put it there?
+        # The parser parses IDENTIFIER 'VARIABLE'. `visit(Identifier)` returns 'VARIABLE' string unless it's in context.
+        # So it is likely still a string 'VARIABLE'.
 
         if isinstance(name_node, Identifier):
             name = name_node.name
@@ -226,11 +214,11 @@ class Interpreter:
 
         vals = interpreter.evaluate_args(args[2:])
 
-        if decl_type == 'VARIABLE':
+        if decl_type == SymbolType.VARIABLE.value or decl_type == 'VARIABLE':
             interpreter.context.set(name, vals[0])
-        elif decl_type == 'FLAGS':
+        elif decl_type == SymbolType.FLAGS.value or decl_type == 'FLAGS':
             interpreter.context.set(name, Flag(name, vals[0]))
-        elif decl_type == 'EXECUTABLE':
+        elif decl_type == SymbolType.EXECUTABLE.value or decl_type == 'EXECUTABLE':
             interpreter.context.set(name, Executable(name, vals[0], vals[1], vals[2]))
 
     def func_set(self, args, interpreter):
@@ -279,6 +267,12 @@ class Interpreter:
                  flat_args.append(str(a))
 
         command = [str(exe_name)] + flat_args
+
+        # Dry Run Check
+        if interpreter.dry_run:
+            print(f"EXECUTE (DRY): {' '.join(command)}")
+            return # Skip subprocess.run
+
         print(f"EXECUTE: {' '.join(command)}")
         try:
             subprocess.run(command, check=True)
@@ -311,6 +305,8 @@ class Interpreter:
 
     def func_echo(self, args, interpreter):
         vals = interpreter.evaluate_args(args)
+        # ECHO is executed even in dry-run?
+        # "Exception: Dry-run may execute ECHO commands, not anything else."
         print(" ".join(map(str, vals)))
         return True
 
