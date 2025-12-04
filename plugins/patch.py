@@ -11,10 +11,10 @@ def parse_patch(parser):
     parser.eat(TokenType.IDENTIFIER)
     parser.eat(TokenType.LPAREN)
 
-    # NUD for Identifier consumes token
-    target = parser.parse_identifier() # Assuming NUD handler returns Identifier node
+    # Use non-NUD parser to avoid parsing an expression
+    target = parser.parse_identifier_node()
     parser.eat(TokenType.COMMA)
-    new_val = parser.parse_identifier()
+    new_val = parser.parse_identifier_node()
 
     parser.eat(TokenType.RPAREN)
     # Target.name might be Identifier object or string?
