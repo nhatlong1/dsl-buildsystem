@@ -1,7 +1,23 @@
-import re
-from typing import Optional, Any
+"""
+Lexical analyzer for the build system.
+
+This module provides the Lexer class which tokenizes input text into a stream
+of tokens for parsing. It handles:
+- Keywords (TRUE, FALSE, NULL)
+- Identifiers
+- Numbers (integers)
+- String literals with escape sequences
+- Operators and punctuation (parentheses, brackets, braces, dots, etc.)
+- Comments (/* ... */)
+- Special operators (pipe-greater |>)
+
+The lexer tracks line and column positions for error reporting.
+"""
+
+from typing import Optional
 from src.types import TokenType, Token
 from src.protocols import LexerProtocol
+
 
 class Lexer(LexerProtocol):
     """
@@ -23,6 +39,7 @@ class Lexer(LexerProtocol):
     current_char : Optional[str]
         The character at the current position.
     """
+
     def __init__(self, text: str):
         self.text = text
         self.pos = 0
@@ -44,13 +61,14 @@ class Lexer(LexerProtocol):
         Exception
             Always raised with the error message and location.
         """
+        # pylint: disable=broad-exception-raised
         raise Exception(f"Lexer error at line {self.line}, column {self.column}: {msg}")
 
     def advance(self) -> None:
         """
         Advances the current position pointer and updates the current character.
         """
-        if self.current_char == '\n':
+        if self.current_char == "\n":
             self.line += 1
             self.column = 0
         self.pos += 1
@@ -86,10 +104,10 @@ class Lexer(LexerProtocol):
         Skips over comments (/* ... */).
         """
         # Comments start with /* and end with */
-        self.advance() # /
-        self.advance() # *
+        self.advance()  # /
+        self.advance()  # *
         while self.current_char is not None:
-            if self.current_char == '*' and self.peek() == '/':
+            if self.current_char == "*" and self.peek() == "/":
                 self.advance()
                 self.advance()
                 return
@@ -105,7 +123,7 @@ class Lexer(LexerProtocol):
         int
             The parsed integer value.
         """
-        result = ''
+        result = ""
         while self.current_char is not None and self.current_char.isdigit():
             result += self.current_char
             self.advance()
@@ -120,14 +138,21 @@ class Lexer(LexerProtocol):
         str
             The parsed string value.
         """
-        result = ''
-        self.advance() # skip opening quote
+        result = ""
+        self.advance()  # skip opening quote
         while self.current_char is not None and self.current_char != '"':
-            if self.current_char == '\\':
+            if self.current_char == "\\":
                 self.advance()
-                if self.current_char in ['"', '\\', 'n', 't', 'r', '0']:
-                    escape_map = {'n': '\n', 't': '\t', 'r': '\r', '0': '\0', '"': '"', '\\': '\\'}
-                    result += escape_map.get(self.current_char, self.current_char) # type: ignore
+                if self.current_char in ['"', "\\", "n", "t", "r", "0"]:
+                    escape_map = {
+                        "n": "\n",
+                        "t": "\t",
+                        "r": "\r",
+                        "0": "\0",
+                        '"': '"',
+                        "\\": "\\",
+                    }
+                    result += escape_map.get(self.current_char, self.current_char)  # type: ignore
                 else:
                     result += self.current_char
             else:
@@ -136,7 +161,7 @@ class Lexer(LexerProtocol):
 
         if self.current_char != '"':
             self.error("Unterminated string")
-        self.advance() # skip closing quote
+        self.advance()  # skip closing quote
         return result
 
     def identifier(self) -> Token:
@@ -148,16 +173,18 @@ class Lexer(LexerProtocol):
         Token
             The parsed identifier token (or specific keyword token).
         """
-        result = ''
-        while self.current_char is not None and (self.current_char.isalnum() or self.current_char == '_'):
+        result = ""
+        while self.current_char is not None and (
+            self.current_char.isalnum() or self.current_char == "_"
+        ):
             result += self.current_char
             self.advance()
 
-        if result == 'TRUE':
+        if result == "TRUE":
             return Token(TokenType.BOOLEAN, True, self.line, self.column)
-        if result == 'FALSE':
+        if result == "FALSE":
             return Token(TokenType.BOOLEAN, False, self.line, self.column)
-        if result == 'NULL':
+        if result == "NULL":
             return Token(TokenType.NULL, None, self.line, self.column)
 
         return Token(TokenType.IDENTIFIER, result, self.line, self.column)
@@ -176,7 +203,7 @@ class Lexer(LexerProtocol):
                 self.skip_whitespace()
                 continue
 
-            if self.current_char == '/' and self.peek() == '*':
+            if self.current_char == "/" and self.peek() == "*":
                 self.skip_comment()
                 continue
 
@@ -186,56 +213,56 @@ class Lexer(LexerProtocol):
             if self.current_char == '"':
                 return Token(TokenType.STRING, self.string(), self.line, self.column)
 
-            if self.current_char.isalpha() or self.current_char == '_':
+            if self.current_char.isalpha() or self.current_char == "_":
                 return self.identifier()
 
-            if self.current_char == '(':
+            if self.current_char == "(":
                 self.advance()
-                return Token(TokenType.LPAREN, '(', self.line, self.column)
+                return Token(TokenType.LPAREN, "(", self.line, self.column)
 
-            if self.current_char == ')':
+            if self.current_char == ")":
                 self.advance()
-                return Token(TokenType.RPAREN, ')', self.line, self.column)
+                return Token(TokenType.RPAREN, ")", self.line, self.column)
 
-            if self.current_char == ',':
+            if self.current_char == ",":
                 self.advance()
-                return Token(TokenType.COMMA, ',', self.line, self.column)
+                return Token(TokenType.COMMA, ",", self.line, self.column)
 
-            if self.current_char == '.':
+            if self.current_char == ".":
                 self.advance()
-                return Token(TokenType.DOT, '.', self.line, self.column)
+                return Token(TokenType.DOT, ".", self.line, self.column)
 
-            if self.current_char == '@':
+            if self.current_char == "@":
                 self.advance()
-                return Token(TokenType.AT, '@', self.line, self.column)
+                return Token(TokenType.AT, "@", self.line, self.column)
 
-            if self.current_char == '*':
+            if self.current_char == "*":
                 self.advance()
-                return Token(TokenType.STAR, '*', self.line, self.column)
+                return Token(TokenType.STAR, "*", self.line, self.column)
 
-            if self.current_char == '{':
+            if self.current_char == "{":
                 self.advance()
-                return Token(TokenType.LBRACE, '{', self.line, self.column)
+                return Token(TokenType.LBRACE, "{", self.line, self.column)
 
-            if self.current_char == '}':
+            if self.current_char == "}":
                 self.advance()
-                return Token(TokenType.RBRACE, '}', self.line, self.column)
+                return Token(TokenType.RBRACE, "}", self.line, self.column)
 
-            if self.current_char == '[':
+            if self.current_char == "[":
                 self.advance()
-                return Token(TokenType.LBRACKET, '[', self.line, self.column)
+                return Token(TokenType.LBRACKET, "[", self.line, self.column)
 
-            if self.current_char == ']':
+            if self.current_char == "]":
                 self.advance()
-                return Token(TokenType.RBRACKET, ']', self.line, self.column)
+                return Token(TokenType.RBRACKET, "]", self.line, self.column)
 
-            if self.current_char == '|':
-                if self.peek() == '>':
+            if self.current_char == "|":
+                if self.peek() == ">":
                     line = self.line
                     column = self.column
                     self.advance()
                     self.advance()
-                    return Token(TokenType.PIPE_GT, '|>', line, column)
+                    return Token(TokenType.PIPE_GT, "|>", line, column)
             self.error(f"Invalid character '{self.current_char}'")
 
         return Token(TokenType.EOF, None, self.line, self.column)
