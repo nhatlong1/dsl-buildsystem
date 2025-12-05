@@ -208,7 +208,6 @@ class Parser(ParserProtocol):
         else:
             self.error(f"Expected {token_type}, got {self._current_token.type}")
             # The error function raises an exception, so this return is unreachable
-            return token
 
     def peek_precedence(self) -> int:
         """
