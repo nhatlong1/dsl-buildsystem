@@ -9,14 +9,14 @@ and custom token handlers.
 import os
 import sys
 import importlib
-from typing import Callable, Tuple, Dict, Any, List
+from typing import Callable, Tuple, Dict, Any, List, overload, Literal as TypingLiteral
 
 from src.lexer import TokenType
 from src.types import (
     ASTNode,
     Program,
     FunctionCall,
-    Literal,
+    Literal as ASTLiteral,
     Identifier,
     VariableDeref,
     PropertyAccess,
@@ -51,7 +51,7 @@ class Parser(ParserProtocol):
 
     def __init__(self, lexer: LexerProtocol):
         self.lexer = lexer
-        self._current_token: Token = self.lexer.get_next_token()
+        self._current_token: Token[Any] = self.lexer.get_next_token()
 
         # Pratt Parser tables
         self.prefix_parse_fns: Dict[TokenType, Callable[[], ASTNode]] = {}
@@ -68,7 +68,7 @@ class Parser(ParserProtocol):
         self.register_core_grammar()
 
     @property
-    def current_token(self) -> Token:
+    def current_token(self) -> Token[Any]:
         return self._current_token
 
     def register_core_grammar(self) -> None:
@@ -168,7 +168,26 @@ class Parser(ParserProtocol):
         # pylint: disable=broad-exception-raised
         raise Exception(f"Parser error at line {self._current_token.line}: {msg}")
 
-    def eat(self, token_type: TokenType) -> None:
+    # Overloads for strict type checking
+    @overload
+    def eat(self, token_type: TypingLiteral[TokenType.NUMBER]) -> Token[int]: ...
+
+    @overload
+    def eat(self, token_type: TypingLiteral[TokenType.STRING]) -> Token[str]: ...
+
+    @overload
+    def eat(self, token_type: TypingLiteral[TokenType.BOOLEAN]) -> Token[bool]: ...
+
+    @overload
+    def eat(self, token_type: TypingLiteral[TokenType.IDENTIFIER]) -> Token[str]: ...
+
+    @overload
+    def eat(self, token_type: TypingLiteral[TokenType.NULL]) -> Token[None]: ...
+
+    @overload
+    def eat(self, token_type: TokenType) -> Token[Any]: ...
+
+    def eat(self, token_type: TokenType) -> Token[Any]:
         """
         Consumes the current token if it matches the expected type, otherwise raises an error.
 
@@ -176,11 +195,20 @@ class Parser(ParserProtocol):
         ----------
         token_type : TokenType
             The expected token type.
+
+        Returns
+        -------
+        Token[Any]
+            The consumed token.
         """
-        if self._current_token.type == token_type:
+        token = self._current_token
+        if token.type == token_type:
             self._current_token = self.lexer.get_next_token()
+            return token
         else:
             self.error(f"Expected {token_type}, got {self._current_token.type}")
+            # The error function raises an exception, so this return is unreachable
+            return token
 
     def peek_precedence(self) -> int:
         """
@@ -272,9 +300,8 @@ class Parser(ParserProtocol):
         if str(self._current_token.value) in self.token_handlers:
             return self.token_handlers[str(self._current_token.value)](self)
 
-        token = self._current_token
-        self.eat(TokenType.IDENTIFIER)
-        return Identifier(name=str(token.value))
+        token = self.eat(TokenType.IDENTIFIER)
+        return Identifier(name=token.value)
 
     def parse_identifier_star(self) -> Identifier:
         """
@@ -288,18 +315,18 @@ class Parser(ParserProtocol):
         self.eat(TokenType.STAR)
         return Identifier(name="*")
 
-    def parse_literal(self) -> Literal:
+    def parse_literal(self) -> ASTLiteral:
         """
         Parses a literal value (string, number, boolean, null).
 
         Returns
         -------
-        Literal
+        ASTLiteral
             A Literal node.
         """
         token = self._current_token
         self.eat(token.type)
-        return Literal(value=token.value)
+        return ASTLiteral(value=token.value)
 
     def parse_grouped_expression(self) -> ASTNode:
         """
@@ -384,9 +411,8 @@ class Parser(ParserProtocol):
         Identifier
             The Identifier node.
         """
-        token = self._current_token
-        self.eat(TokenType.IDENTIFIER)
-        return Identifier(name=str(token.value))
+        token = self.eat(TokenType.IDENTIFIER)
+        return Identifier(name=token.value)
 
     def parse_arg_list(self) -> List[ASTNode]:
         """
@@ -454,7 +480,7 @@ def pretty_print(node: ASTNode, indent: int = 0) -> None:
             pretty_print(arg, indent + 1)
     elif isinstance(node, Identifier):
         print(f"{space}Identifier: {node.name}")
-    elif isinstance(node, Literal):
+    elif isinstance(node, ASTLiteral):
         print(f"{space}Literal: {repr(node.value)}")
     elif isinstance(node, VariableDeref):
         print(f"{space}VariableDeref (@)")

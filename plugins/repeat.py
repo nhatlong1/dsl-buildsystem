@@ -1,16 +1,15 @@
 from typing import Any, Optional, List
 
 from src.protocols import ParserProtocol
-from src.types import TokenType, ASTNode, Precedence
+from src.types import TokenType, ASTNode, Precedence, Token
 from src.interpreter import Interpreter
-from src.types import Token
 
 
 class RepeatNode(ASTNode):
     """AST node representing a repeat statement for fixed iterations.
 
     Attributes:
-        count: AST node representing the number of times to repeat
+        count: The number of times to repeat (int)
         body: AST node representing the body to execute repeatedly
     """
 
@@ -18,8 +17,8 @@ class RepeatNode(ASTNode):
         """Initialize a RepeatNode.
 
         Args:
-            count: AST node for the repeat count expression
-            body: AST node for the body to repeat
+            count: Integer for the repeat count
+            body: List of AST nodes for the body
         """
         self.count: int = count
         self.body: List[ASTNode] = body
@@ -39,8 +38,8 @@ def parse_repeat(parser: ParserProtocol) -> RepeatNode:
     parser.eat(TokenType.IDENTIFIER)
     parser.eat(TokenType.LPAREN)
 
-    count_token: Token = parser.current_token
-    parser.eat(TokenType.NUMBER)
+    # Use the new eat return value for strict typing
+    count_token = parser.eat(TokenType.NUMBER)
     count: int = count_token.value
 
     parser.eat(TokenType.COMMA)

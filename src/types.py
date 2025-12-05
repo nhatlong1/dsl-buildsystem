@@ -8,7 +8,7 @@ and runtime types like Flag and Executable.
 import re
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from typing import List, Union, Optional, Any
+from typing import List, Union, Optional, Any, Generic, TypeVar
 
 # --- Enums ---
 
@@ -62,9 +62,10 @@ class Precedence(IntEnum):
 
 # --- Dataclasses ---
 
+T = TypeVar("T")
 
 @dataclass
-class Token:
+class Token(Generic[T]):
     """
     Represents a lexical token.
 
@@ -72,7 +73,7 @@ class Token:
     ----------
     type : TokenType
         The type of the token.
-    value : Any
+    value : T
         The value associated with the token.
     line : int
         The line number where the token was found.
@@ -81,7 +82,7 @@ class Token:
     """
 
     type: TokenType
-    value: Any
+    value: T
     line: int
     column: int
 

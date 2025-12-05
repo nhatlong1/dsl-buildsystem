@@ -7,10 +7,11 @@ and to enable extensibility through plugins.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict, Optional, Generic, TypeVar
 
-from src.types import Token, ASTNode
+from src.types import Token, ASTNode, TokenType
 
+T = TypeVar("T")
 
 class LexerProtocol(ABC):
     """
@@ -21,14 +22,14 @@ class LexerProtocol(ABC):
     """
 
     @abstractmethod
-    def get_next_token(self) -> Any:
+    def get_next_token(self) -> Token[Any]:
         """
         Retrieves the next token from the input stream.
 
         Returns
         -------
-        Any
-            The next token (typically a Token object).
+        Token[Any]
+            The next token object.
         """
 
     @abstractmethod
@@ -60,13 +61,13 @@ class ParserProtocol(ABC):
 
     @property
     @abstractmethod
-    def current_token(self) -> Token:
+    def current_token(self) -> Token[Any]:
         """
         Returns the current token being processed by the parser.
 
         Returns
         -------
-        Token
+        Token[Any]
             The current token in the token stream.
         """
 
@@ -98,27 +99,27 @@ class ParserProtocol(ABC):
         """
 
     @abstractmethod
-    def register_prefix(self, token_type: Any, fn: Any) -> None:
+    def register_prefix(self, token_type: TokenType, fn: Any) -> None:
         """
         Registers a prefix parse function for a token type.
 
         Parameters
         ----------
-        token_type : Any
-            The token type to register (typically a TokenType enum value).
+        token_type : TokenType
+            The token type to register.
         fn : Any
             The parse function to call when this token is encountered in prefix position.
         """
 
     @abstractmethod
-    def register_infix(self, token_type: Any, fn: Any, precedence: int) -> None:
+    def register_infix(self, token_type: TokenType, fn: Any, precedence: int) -> None:
         """
         Registers an infix parse function for a token type.
 
         Parameters
         ----------
-        token_type : Any
-            The token type to register (typically a TokenType enum value).
+        token_type : TokenType
+            The token type to register.
         fn : Any
             The parse function to call when this token is encountered in infix position.
         precedence : int
@@ -139,14 +140,19 @@ class ParserProtocol(ABC):
         """
 
     @abstractmethod
-    def eat(self, token_type: Any) -> None:
+    def eat(self, token_type: TokenType) -> Token[Any]:
         """
         Consumes the current token if it matches the expected type.
 
         Parameters
         ----------
-        token_type : Any
+        token_type : TokenType
             The expected token type.
+
+        Returns
+        -------
+        Token[Any]
+            The consumed token.
 
         Raises
         ------
