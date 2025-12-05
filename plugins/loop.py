@@ -28,7 +28,7 @@ class ForLoopNode(ASTNode):
 def parse_for(parser: Any) -> ForLoopNode:
     """Parse a for loop statement.
 
-    Parses loop syntax: for (var_name) { body }
+    Parses loop syntax: for (var_name, items, body)
 
     Args:
         parser: The parser instance
@@ -40,8 +40,9 @@ def parse_for(parser: Any) -> ForLoopNode:
     parser.eat(TokenType.LPAREN)
 
     # Arg 1: Identifier (Variable Name)
-    var_name_node = parser.parse_identifier_node()
-    var_name = var_name_node.name
+    # Using eat to get the token directly
+    var_token = parser.eat(TokenType.IDENTIFIER)
+    var_name = var_token.value
 
     parser.eat(TokenType.COMMA)
 

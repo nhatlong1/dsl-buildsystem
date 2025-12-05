@@ -1,28 +1,27 @@
-from typing import Any, Optional, List
+from typing import Any
 
 from src.protocols import ParserProtocol
 from src.types import TokenType, ASTNode, Precedence
 from src.interpreter import Interpreter
-from src.types import Token
 
 
 class RepeatNode(ASTNode):
     """AST node representing a repeat statement for fixed iterations.
 
     Attributes:
-        count: AST node representing the number of times to repeat
+        count: The number of times to repeat (int)
         body: AST node representing the body to execute repeatedly
     """
 
-    def __init__(self, count: int, body: List[ASTNode]) -> None:
+    def __init__(self, count: int, body: ASTNode) -> None:
         """Initialize a RepeatNode.
 
         Args:
-            count: AST node for the repeat count expression
-            body: AST node for the body to repeat
+            count: Integer for the repeat count
+            body: AST node for the body
         """
         self.count: int = count
-        self.body: List[ASTNode] = body
+        self.body: ASTNode = body
 
 
 def parse_repeat(parser: ParserProtocol) -> RepeatNode:
@@ -39,8 +38,8 @@ def parse_repeat(parser: ParserProtocol) -> RepeatNode:
     parser.eat(TokenType.IDENTIFIER)
     parser.eat(TokenType.LPAREN)
 
-    count_token: Token = parser.current_token
-    parser.eat(TokenType.NUMBER)
+    # Use the new eat return value for strict typing
+    count_token = parser.eat(TokenType.NUMBER)
     count: int = count_token.value
 
     parser.eat(TokenType.COMMA)
@@ -49,22 +48,18 @@ def parse_repeat(parser: ParserProtocol) -> RepeatNode:
 
     parser.eat(TokenType.RPAREN)
 
-    return RepeatNode(count, [body])
+    return RepeatNode(count, body)
 
 
-def execute_repeat(interpreter: Interpreter, node: RepeatNode) -> Optional[List[Any]]:
+def execute_repeat(interpreter: Interpreter, node: RepeatNode) -> None:
     """Execute a repeat node by evaluating body a fixed number of times.
 
     Args:
         interpreter: The interpreter instance
         node: The RepeatNode to execute
-
-    Returns:
-        List of all results from each iteration, or None if count is invalid
     """
     for _ in range(node.count):
-        for stmt in node.body:
-            interpreter.visit(stmt)
+        interpreter.visit(node.body)
 
 
 def register(parser: Any) -> None:
