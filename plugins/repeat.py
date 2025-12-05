@@ -1,7 +1,7 @@
 from typing import Any, Optional, List
 
 from src.protocols import ParserProtocol
-from src.types import TokenType, ASTNode, Precedence, Token
+from src.types import TokenType, ASTNode, Precedence
 from src.interpreter import Interpreter
 
 
