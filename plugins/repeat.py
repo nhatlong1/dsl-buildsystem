@@ -1,4 +1,4 @@
-from typing import Any, Optional, List
+from typing import Any, Optional
 
 from src.protocols import ParserProtocol
 from src.types import TokenType, ASTNode, Precedence, Token
@@ -13,15 +13,15 @@ class RepeatNode(ASTNode):
         body: AST node representing the body to execute repeatedly
     """
 
-    def __init__(self, count: int, body: List[ASTNode]) -> None:
+    def __init__(self, count: int, body: ASTNode) -> None:
         """Initialize a RepeatNode.
 
         Args:
             count: Integer for the repeat count
-            body: List of AST nodes for the body
+            body: AST node for the body
         """
         self.count: int = count
-        self.body: List[ASTNode] = body
+        self.body: ASTNode = body
 
 
 def parse_repeat(parser: ParserProtocol) -> RepeatNode:
@@ -48,10 +48,10 @@ def parse_repeat(parser: ParserProtocol) -> RepeatNode:
 
     parser.eat(TokenType.RPAREN)
 
-    return RepeatNode(count, [body])
+    return RepeatNode(count, body)
 
 
-def execute_repeat(interpreter: Interpreter, node: RepeatNode) -> Optional[List[Any]]:
+def execute_repeat(interpreter: Interpreter, node: RepeatNode) -> Optional[Any]:
     """Execute a repeat node by evaluating body a fixed number of times.
 
     Args:
@@ -59,11 +59,10 @@ def execute_repeat(interpreter: Interpreter, node: RepeatNode) -> Optional[List[
         node: The RepeatNode to execute
 
     Returns:
-        List of all results from each iteration, or None if count is invalid
+        The last evaluated value from the loop body, or None
     """
     for _ in range(node.count):
-        for stmt in node.body:
-            interpreter.visit(stmt)
+        interpreter.visit(node.body)
 
 
 def register(parser: Any) -> None:
