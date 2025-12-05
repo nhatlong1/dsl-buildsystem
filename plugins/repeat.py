@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from src.protocols import ParserProtocol
 from src.types import TokenType, ASTNode, Precedence, Token
@@ -51,15 +51,12 @@ def parse_repeat(parser: ParserProtocol) -> RepeatNode:
     return RepeatNode(count, body)
 
 
-def execute_repeat(interpreter: Interpreter, node: RepeatNode) -> Optional[Any]:
+def execute_repeat(interpreter: Interpreter, node: RepeatNode) -> None:
     """Execute a repeat node by evaluating body a fixed number of times.
 
     Args:
         interpreter: The interpreter instance
         node: The RepeatNode to execute
-
-    Returns:
-        The last evaluated value from the loop body, or None
     """
     for _ in range(node.count):
         interpreter.visit(node.body)
