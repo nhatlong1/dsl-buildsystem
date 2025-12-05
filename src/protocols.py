@@ -7,7 +7,7 @@ and to enable extensibility through plugins.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Dict, Optional, Generic, TypeVar
+from typing import Any, List, Dict, Optional, TypeVar
 
 from src.types import Token, ASTNode, TokenType
 
