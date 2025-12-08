@@ -1,0 +1,37 @@
+# build.mybuild
+# This script uses the DSL to build the C++ project (Self-hosting test)
+
+# Declare toolchain
+DECLARE(EXECUTABLE, gpp, "GNU C++ Compiler", "System", "g++")
+DECLARE(FLAGS, cxx_flags, "-std=c++17 -I$1 -Wall -Wextra")
+DECLARE(FLAGS, output_flag, "-o $1")
+
+# Declare Variables
+DECLARE(VARIABLE, include_dir, "include")
+DECLARE(VARIABLE, out_dir, "bin")
+DECLARE(VARIABLE, exe_name, "bin/builder_self_hosted")
+
+# Ensure output directory exists (Using shell command via EXECUTE for now)
+DECLARE(EXECUTABLE, mkdir, "Make Directory", "System", "mkdir")
+EXECUTE(mkdir, "-p", @out_dir)
+
+# Build
+ECHO("Building builder using DSL...")
+
+# In the current implementation EXECUTE takes a flat list of args or flags
+# g++ -std=c++17 -Iinclude src/lexer.cpp src/parser.cpp src/interpreter.cpp src/main.cpp -o bin/builder_self_hosted
+
+EXECUTE(
+    @gpp,
+    @cxx_flags(@include_dir),
+    "src/lexer.cpp",
+    "src/parser.cpp",
+    "src/interpreter.cpp",
+    "src/main.cpp",
+    @output_flag(@exe_name)
+)
+
+IF(EXISTS(@exe_name),
+    ECHO("Self-hosted build successful! Created ", @exe_name),
+    ECHO("Self-hosted build failed.")
+)
