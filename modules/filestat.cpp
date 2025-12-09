@@ -1,6 +1,6 @@
 #include "plugin.hpp"
 #include "types.hpp"
-#include "interfaces.hpp"
+#include "protocols.hpp"
 #include "value.hpp"
 #include <iostream>
 #include <sys/stat.h>
@@ -10,7 +10,7 @@
 
 namespace dsl {
 
-class FileStatObject : public Object {
+class FileStatObject : public IObject {
     std::string path;
     struct stat stat_buf;
     bool stat_ok;
@@ -35,13 +35,13 @@ public:
     }
 };
 
-Value func_stat(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& interp) {
+Value func_stat(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& interp) {
     if (args.empty()) return Value();
     auto path = interp.visit(args[0].get()).as_string();
     return Value(std::make_shared<FileStatObject>(path));
 }
 
-extern "C" void register_plugin(dsl::Parser& /* parser */, dsl::Context& context) {
+extern "C" void register_plugin(dsl::IParser& /* parser */, dsl::IContext& context) {
     context.register_function("STAT", func_stat);
 }
 

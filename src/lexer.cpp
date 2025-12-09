@@ -4,7 +4,7 @@
 
 namespace dsl {
 
-DefaultLexer::DefaultLexer(std::string input) : text(std::move(input)), pos(0), current_char(0), line(1), column(1) {
+Lexer::Lexer(std::string input) : text(std::move(input)), pos(0), current_char(0), line(1), column(1) {
     if (!text.empty()) {
         current_char = text[0];
     } else {
@@ -12,7 +12,7 @@ DefaultLexer::DefaultLexer(std::string input) : text(std::move(input)), pos(0), 
     }
 }
 
-void DefaultLexer::advance() {
+void Lexer::advance() {
     pos++;
     if (current_char == '\n') {
         line++;
@@ -28,20 +28,20 @@ void DefaultLexer::advance() {
     }
 }
 
-char DefaultLexer::peek() {
+char Lexer::peek() {
     if (pos + 1 < text.length()) {
         return text[pos + 1];
     }
     return '\0';
 }
 
-void DefaultLexer::skip_whitespace() {
+void Lexer::skip_whitespace() {
     while (current_char != '\0' && isspace(static_cast<unsigned char>(current_char))) {
         advance();
     }
 }
 
-Token<std::string> DefaultLexer::make_identifier() {
+Token<std::string> Lexer::make_identifier() {
     std::string result;
     int start_col = column;
     while (current_char != '\0' && (isalnum(static_cast<unsigned char>(current_char)) || current_char == '_' || current_char == '-')) {
@@ -57,7 +57,7 @@ Token<std::string> DefaultLexer::make_identifier() {
     return {type, result, line, start_col};
 }
 
-Token<std::string> DefaultLexer::make_string() {
+Token<std::string> Lexer::make_string() {
     int start_col = column;
     char quote_type = current_char;
     advance(); // Skip opening quote
@@ -83,7 +83,7 @@ Token<std::string> DefaultLexer::make_string() {
     return {TokenType::STRING, result, line, start_col};
 }
 
-Token<std::string> DefaultLexer::make_number() {
+Token<std::string> Lexer::make_number() {
     std::string result;
     int start_col = column;
     while (current_char != '\0' && isdigit(static_cast<unsigned char>(current_char))) {
@@ -93,7 +93,7 @@ Token<std::string> DefaultLexer::make_number() {
     return {TokenType::NUMBER, result, line, start_col};
 }
 
-Token<std::string> DefaultLexer::get_next_token() {
+Token<std::string> Lexer::get_next_token() {
     while (current_char != '\0') {
         if (isspace(static_cast<unsigned char>(current_char))) {
             skip_whitespace();
@@ -141,7 +141,7 @@ Token<std::string> DefaultLexer::get_next_token() {
             case '.': type = TokenType::DOT; break;
             case '@': type = TokenType::AT; break;
             case '*': type = TokenType::STAR; break;
-            case '+': type = TokenType::PLUS; break;
+            case '+': type = TokenType::PLUS; break; // Added PLUS
             default: found = false; break;
         }
 

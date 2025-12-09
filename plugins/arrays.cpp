@@ -1,6 +1,6 @@
 #include "plugin.hpp"
 #include "types.hpp"
-#include "interfaces.hpp"
+#include "protocols.hpp"
 #include "value.hpp"
 #include <iostream>
 #include <memory>
@@ -15,7 +15,7 @@ struct ArrayNode : public ASTNode {
     explicit ArrayNode(std::vector<std::shared_ptr<ASTNode>> i) : items(std::move(i)) {}
 
     void* execute(void* interpreter_ptr) override {
-        Interpreter* interpreter = static_cast<Interpreter*>(interpreter_ptr);
+        IInterpreter* interpreter = static_cast<IInterpreter*>(interpreter_ptr);
         std::vector<Value> evaluated_items;
         for (const auto& item : items) {
             evaluated_items.push_back(interpreter->visit(item.get()));
@@ -32,7 +32,7 @@ struct IndexNode : public ASTNode {
     IndexNode(std::shared_ptr<ASTNode> t, std::shared_ptr<ASTNode> i) : target(std::move(t)), index(std::move(i)) {}
 
     void* execute(void* interpreter_ptr) override {
-        Interpreter* interpreter = static_cast<Interpreter*>(interpreter_ptr);
+        IInterpreter* interpreter = static_cast<IInterpreter*>(interpreter_ptr);
         Value target_val = interpreter->visit(target.get());
         Value index_val = interpreter->visit(index.get());
 
@@ -56,7 +56,7 @@ struct IndexNode : public ASTNode {
 };
 
 // Parse [1, 2]
-std::shared_ptr<ASTNode> parse_array_literal(Parser& parser) {
+std::shared_ptr<ASTNode> parse_array_literal(IParser& parser) {
     parser.eat(TokenType::LBRACKET);
 
     std::vector<std::shared_ptr<ASTNode>> items;
@@ -74,14 +74,14 @@ std::shared_ptr<ASTNode> parse_array_literal(Parser& parser) {
 }
 
 // Parse target[index]
-std::shared_ptr<ASTNode> parse_index_expression(Parser& parser, std::shared_ptr<ASTNode> left) {
+std::shared_ptr<ASTNode> parse_index_expression(IParser& parser, std::shared_ptr<ASTNode> left) {
     parser.eat(TokenType::LBRACKET);
     auto index = parser.parse_expression(static_cast<int>(Precedence::LOWEST));
     parser.eat(TokenType::RBRACKET);
     return std::make_shared<IndexNode>(left, index);
 }
 
-extern "C" void register_plugin(dsl::Parser& parser, dsl::Context& /* context */) {
+extern "C" void register_plugin(dsl::IParser& parser, dsl::IContext& /* context */) {
     // Prefix [
     parser.register_prefix(TokenType::LBRACKET, [&parser]() {
         return parse_array_literal(parser);

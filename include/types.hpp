@@ -44,8 +44,7 @@ enum class Precedence {
     PIPELINE = 10,
     DOT = 30,
     PREFIX = 40,
-    CALL = 50,
-    INDEX = 50 // Same as call
+    CALL = 50
 };
 
 template <typename T>
@@ -58,7 +57,7 @@ struct Token {
 
 // --- AST Nodes ---
 
-class Interpreter; // Forward declaration
+class IInterpreter; // Forward declaration
 class Value; // Forward declaration
 
 struct ASTNode {
@@ -116,21 +115,6 @@ struct BinaryExpression : public ASTNode {
         : left(std::move(l)), op(o), right(std::move(r)) {}
 };
 
-struct IndexExpression : public ASTNode {
-    std::shared_ptr<ASTNode> left;
-    std::shared_ptr<ASTNode> index;
-    IndexExpression(std::shared_ptr<ASTNode> l, std::shared_ptr<ASTNode> i)
-        : left(std::move(l)), index(std::move(i)) {}
-};
-
-struct ForLoopNode : public ASTNode {
-    std::string var_name;
-    std::shared_ptr<ASTNode> array_expr;
-    std::vector<std::shared_ptr<ASTNode>> body_statements;
-    ForLoopNode(std::string v, std::shared_ptr<ASTNode> a, std::vector<std::shared_ptr<ASTNode>> b)
-        : var_name(std::move(v)), array_expr(std::move(a)), body_statements(std::move(b)) {}
-};
-
 // --- Runtime Types ---
 
 struct Flag {
@@ -179,8 +163,8 @@ struct Executable {
         : name(std::move(n)), description(std::move(d)), source(std::move(s)), path(std::move(p)) {}
 };
 
-struct Object {
-    virtual ~Object() = default;
+struct IObject {
+    virtual ~IObject() = default;
     virtual Value get_property(const std::string& name) = 0;
 };
 

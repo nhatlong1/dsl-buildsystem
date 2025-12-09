@@ -10,10 +10,10 @@
 
 // Forward declaration
 namespace dsl {
-    void load_plugin(const std::string& path, Parser& parser, Context& context);
+    void load_plugin(const std::string& path, IParser& parser, IContext& context);
 }
 
-void load_plugins_from_dir(const std::string& dir, dsl::Parser& parser, dsl::Context& context) {
+void load_plugins_from_dir(const std::string& dir, dsl::IParser& parser, dsl::IContext& context) {
     namespace fs = std::filesystem;
     if (!fs::exists(dir)) return;
 
@@ -79,9 +79,9 @@ int main(int argc, char* argv[]) {
 
     // Pipeline
     try {
-        auto lexer = std::make_shared<dsl::DefaultLexer>(source_code);
-        dsl::DefaultParser parser(lexer);
-        dsl::DefaultInterpreter interpreter(dry_run);
+        auto lexer = std::make_shared<dsl::Lexer>(source_code);
+        dsl::Parser parser(lexer);
+        dsl::Interpreter interpreter(dry_run);
         interpreter.attach_parser(&parser);
 
         load_plugins_from_dir("bin/plugins", parser, interpreter.get_context());

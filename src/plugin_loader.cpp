@@ -39,7 +39,7 @@ std::string get_error() {
 #endif
 }
 
-void load_plugin(const std::string& path, Parser& parser, Context& context) {
+void load_plugin(const std::string& path, IParser& parser, IContext& context) {
     LibHandle handle = load_library(path);
     if (!handle) {
         std::cerr << "Failed to load plugin " << path << ": " << get_error() << std::endl;
