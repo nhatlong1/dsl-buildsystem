@@ -107,19 +107,6 @@ Token<std::string> DefaultLexer::get_next_token() {
             continue;
         }
 
-        // Handle C-style comments /* ... */
-        if (current_char == '/' && peek() == '*') {
-            advance(); advance(); // Skip /*
-            while (current_char != '\0') {
-                if (current_char == '*' && peek() == '/') {
-                    advance(); advance(); // Skip */
-                    break;
-                }
-                advance();
-            }
-            continue;
-        }
-
         if (isalpha(static_cast<unsigned char>(current_char)) || current_char == '_') {
             return make_identifier();
         }
