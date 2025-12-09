@@ -3,178 +3,202 @@
 
 namespace dsl {
 
-Parser::Parser(std::shared_ptr<ILexer> l) : lexer(std::move(l)) {
+DefaultParser::DefaultParser(std::shared_ptr<Lexer> l) : lexer(std::move(l)) {
     current_token = lexer->get_next_token();
-    register_core_grammar();
+    register_builtins();
 }
 
-void Parser::register_core_grammar() {
-    using namespace std::placeholders;
+void DefaultParser::register_builtins() {
+    register_prefix(TokenType::IDENTIFIER, std::bind(&DefaultParser::parse_identifier, this));
+    register_prefix(TokenType::STRING, std::bind(&DefaultParser::parse_literal, this));
+    register_prefix(TokenType::NUMBER, std::bind(&DefaultParser::parse_literal, this));
+    register_prefix(TokenType::BOOLEAN, std::bind(&DefaultParser::parse_literal, this));
+    register_prefix(TokenType::NULL_TYPE, std::bind(&DefaultParser::parse_literal, this));
+    register_prefix(TokenType::LPAREN, std::bind(&DefaultParser::parse_grouped_expression, this));
+    register_prefix(TokenType::LBRACKET, std::bind(&DefaultParser::parse_list_literal, this));
+    register_prefix(TokenType::AT, std::bind(&DefaultParser::parse_variable_deref, this));
 
-    // Prefix
-    register_prefix(TokenType::IDENTIFIER, std::bind(&Parser::parse_identifier, this));
-    register_prefix(TokenType::STRING, std::bind(&Parser::parse_literal, this));
-    register_prefix(TokenType::NUMBER, std::bind(&Parser::parse_literal, this));
-    register_prefix(TokenType::BOOLEAN, std::bind(&Parser::parse_literal, this));
-    register_prefix(TokenType::NULL_TYPE, std::bind(&Parser::parse_literal, this));
-    register_prefix(TokenType::STAR, std::bind(&Parser::parse_identifier_star, this));
-    register_prefix(TokenType::LPAREN, std::bind(&Parser::parse_grouped_expression, this));
-    register_prefix(TokenType::AT, std::bind(&Parser::parse_deref, this));
+    register_infix(TokenType::DOT, std::bind(&DefaultParser::parse_dot, this, std::placeholders::_1), static_cast<int>(Precedence::DOT));
+    register_infix(TokenType::PLUS, std::bind(&DefaultParser::parse_binary_expression, this, std::placeholders::_1), static_cast<int>(Precedence::SUM));
+    // Support indexing
+    register_infix(TokenType::LBRACKET, [this](std::shared_ptr<ASTNode> left) {
+        eat(TokenType::LBRACKET);
+        auto index = parse_expression(static_cast<int>(Precedence::LOWEST));
+        eat(TokenType::RBRACKET);
+        return std::make_shared<IndexExpression>(left, index);
+    }, static_cast<int>(Precedence::INDEX));
 
-    // Infix
-    register_infix(TokenType::LPAREN, std::bind(&Parser::parse_call_expression, this, _1), static_cast<int>(Precedence::CALL));
-    register_infix(TokenType::DOT, std::bind(&Parser::parse_property_access, this, _1), static_cast<int>(Precedence::DOT));
-    register_infix(TokenType::PLUS, std::bind(&Parser::parse_infix_expression, this, _1), static_cast<int>(Precedence::SUM));
+    precedences[TokenType::PLUS] = static_cast<int>(Precedence::SUM);
+    precedences[TokenType::DOT] = static_cast<int>(Precedence::DOT);
+    precedences[TokenType::LPAREN] = static_cast<int>(Precedence::CALL);
+    precedences[TokenType::LBRACKET] = static_cast<int>(Precedence::INDEX);
 }
 
-void Parser::register_prefix(TokenType type, std::function<std::shared_ptr<ASTNode>()> fn) {
+void DefaultParser::register_prefix(TokenType type, std::function<std::shared_ptr<ASTNode>()> fn) {
     prefix_parse_fns[type] = fn;
 }
 
-void Parser::register_infix(TokenType type, std::function<std::shared_ptr<ASTNode>(std::shared_ptr<ASTNode>)> fn, int precedence) {
-    infix_parse_fns[type] = {fn, precedence};
+void DefaultParser::register_infix(TokenType type, std::function<std::shared_ptr<ASTNode>(std::shared_ptr<ASTNode>)> fn, int precedence) {
+    infix_parse_fns[type] = fn;
+    precedences[type] = precedence;
 }
 
-void Parser::register_token_handler(const std::string& keyword, std::function<std::shared_ptr<ASTNode>(IParser&)> fn) {
+void DefaultParser::register_token_handler(const std::string& keyword, std::function<std::shared_ptr<ASTNode>(Parser&)> fn) {
     token_handlers[keyword] = fn;
 }
 
-Token<std::string> Parser::eat(TokenType type) {
-    Token<std::string> token = current_token;
-    if (token.type == type) {
+Token<std::string> DefaultParser::eat(TokenType type) {
+    if (current_token.type == type) {
+        Token<std::string> prev = current_token;
         current_token = lexer->get_next_token();
-        return token;
-    } else {
-        std::cerr << "Expected token type " << static_cast<int>(type) << " but got " << static_cast<int>(token.type)
-                  << " (" << token.value << ")" << " at line " << token.line << std::endl;
-        throw std::runtime_error("Parser Error");
+        return prev;
     }
+    std::cerr << "Expected token type " << (int)type << " but got " << (int)current_token.type << " at line " << current_token.line << std::endl;
+    // For simplicity, just return current and advance, or throw
+    Token<std::string> prev = current_token;
+    current_token = lexer->get_next_token();
+    return prev;
 }
 
-TokenType Parser::peek_type() {
+TokenType DefaultParser::peek_type() {
     return current_token.type;
 }
 
-int Parser::peek_precedence() {
-    auto it = infix_parse_fns.find(current_token.type);
-    if (it != infix_parse_fns.end()) {
-        return it->second.second;
-    }
-    return static_cast<int>(Precedence::LOWEST);
-}
-
-std::shared_ptr<Program> Parser::parse_program() {
+std::shared_ptr<Program> DefaultParser::parse_program() {
     auto program = std::make_shared<Program>();
     while (current_token.type != TokenType::EOF_TOKEN) {
-        program->statements.push_back(parse_expression(static_cast<int>(Precedence::LOWEST)));
+        auto stmt = parse_statement();
+        if (stmt) {
+            program->statements.push_back(stmt);
+        } else {
+            // Error recovery or skip
+            current_token = lexer->get_next_token();
+        }
     }
     return program;
 }
 
-std::shared_ptr<ASTNode> Parser::parse_expression(int precedence) {
-    auto prefix_it = prefix_parse_fns.find(current_token.type);
-    if (prefix_it == prefix_parse_fns.end()) {
-        std::cerr << "No prefix parse function for " << static_cast<int>(current_token.type)
-                  << " (" << current_token.value << ")" << " at line " << current_token.line << std::endl;
-        throw std::runtime_error("Parser Error");
+std::shared_ptr<ASTNode> DefaultParser::parse_statement() {
+    return parse_expression(static_cast<int>(Precedence::LOWEST));
+}
+
+std::shared_ptr<ASTNode> DefaultParser::parse_expression(int precedence) {
+    auto prefix = prefix_parse_fns[current_token.type];
+
+    // Check if it's an Identifier that has a special handler (like FOR)
+    if (current_token.type == TokenType::IDENTIFIER && token_handlers.count(current_token.value)) {
+        auto handler = token_handlers[current_token.value];
+        return handler(*this);
     }
 
-    auto left = prefix_it->second();
+    if (!prefix) {
+        // std::cerr << "No prefix parse function for " << (int)current_token.type << std::endl;
+        return nullptr;
+    }
+    auto left = prefix();
 
-    while (precedence < peek_precedence()) {
-        auto infix_it = infix_parse_fns.find(current_token.type);
-        if (infix_it == infix_parse_fns.end()) {
+    while (current_token.type != TokenType::EOF_TOKEN && precedence < (precedences.count(current_token.type) ? precedences[current_token.type] : 0)) {
+        auto infix = infix_parse_fns[current_token.type];
+        if (!infix) {
             return left;
         }
-
-        auto fn = infix_it->second.first;
-        left = fn(left);
+        left = infix(left);
     }
-
     return left;
 }
 
-// Parsers
-
-std::shared_ptr<ASTNode> Parser::parse_identifier() {
-    auto it = token_handlers.find(current_token.value);
-    if (it != token_handlers.end()) {
-        return it->second(*this);
+std::shared_ptr<ASTNode> DefaultParser::parse_identifier() {
+    // Check if we have a special token handler (plugin)
+    if (token_handlers.count(current_token.value)) {
+         auto handler = token_handlers[current_token.value];
+         // eat the keyword inside the handler? Or before?
+         // Usually Pratt parsers consume the token in the prefix function.
+         // But here we are dispatching based on identifier value.
+         return handler(*this);
     }
 
-    Token<std::string> token = eat(TokenType::IDENTIFIER);
-    return std::make_shared<Identifier>(token.value);
+    auto token = eat(TokenType::IDENTIFIER);
+    auto node = std::make_shared<Identifier>(token.value);
+
+    // Function Call?
+    if (current_token.type == TokenType::LPAREN) {
+        eat(TokenType::LPAREN);
+        std::vector<std::shared_ptr<ASTNode>> args;
+        if (current_token.type != TokenType::RPAREN) {
+            args.push_back(parse_expression(static_cast<int>(Precedence::LOWEST)));
+            while (current_token.type == TokenType::COMMA) {
+                eat(TokenType::COMMA);
+                args.push_back(parse_expression(static_cast<int>(Precedence::LOWEST)));
+            }
+        }
+        eat(TokenType::RPAREN);
+        return std::make_shared<FunctionCall>(node, args);
+    }
+
+    return node;
 }
 
-std::shared_ptr<ASTNode> Parser::parse_literal() {
-    Token<std::string> token = current_token;
-    eat(token.type);
-
-    if (token.type == TokenType::STRING) return std::make_shared<Literal>(token.value);
-    if (token.type == TokenType::NUMBER) return std::make_shared<Literal>(std::stoi(token.value));
-    if (token.type == TokenType::BOOLEAN) return std::make_shared<Literal>(token.value == "TRUE");
-    if (token.type == TokenType::NULL_TYPE) return std::make_shared<Literal>();
-
+std::shared_ptr<ASTNode> DefaultParser::parse_literal() {
+    if (current_token.type == TokenType::STRING) {
+        return std::make_shared<Literal>(eat(TokenType::STRING).value);
+    }
+    if (current_token.type == TokenType::NUMBER) {
+        return std::make_shared<Literal>(std::stoi(eat(TokenType::NUMBER).value));
+    }
+    if (current_token.type == TokenType::BOOLEAN) {
+        bool val = (eat(TokenType::BOOLEAN).value == "TRUE");
+        return std::make_shared<Literal>(val);
+    }
+    if (current_token.type == TokenType::NULL_TYPE) {
+        eat(TokenType::NULL_TYPE);
+        return std::make_shared<Literal>();
+    }
     return nullptr;
 }
 
-std::shared_ptr<ASTNode> Parser::parse_identifier_star() {
-    eat(TokenType::STAR);
-    return std::make_shared<Identifier>("*");
-}
-
-std::shared_ptr<ASTNode> Parser::parse_grouped_expression() {
+std::shared_ptr<ASTNode> DefaultParser::parse_grouped_expression() {
     eat(TokenType::LPAREN);
     auto exp = parse_expression(static_cast<int>(Precedence::LOWEST));
     eat(TokenType::RPAREN);
     return exp;
 }
 
-std::shared_ptr<ASTNode> Parser::parse_deref() {
+std::shared_ptr<ASTNode> DefaultParser::parse_list_literal() {
+    eat(TokenType::LBRACKET);
+    std::vector<std::shared_ptr<ASTNode>> elements;
+    if (current_token.type != TokenType::RBRACKET) {
+        elements.push_back(parse_expression(static_cast<int>(Precedence::LOWEST)));
+        while (current_token.type == TokenType::COMMA) {
+            eat(TokenType::COMMA);
+            elements.push_back(parse_expression(static_cast<int>(Precedence::LOWEST)));
+        }
+    }
+    eat(TokenType::RBRACKET);
+
+    // We can represent list as a function call ARRAY(...)
+    auto name = std::make_shared<Identifier>("ARRAY");
+    return std::make_shared<FunctionCall>(name, elements);
+}
+
+std::shared_ptr<ASTNode> DefaultParser::parse_variable_deref() {
     eat(TokenType::AT);
     auto target = parse_expression(static_cast<int>(Precedence::PREFIX));
     return std::make_shared<VariableDeref>(target);
 }
 
-std::shared_ptr<ASTNode> Parser::parse_call_expression(std::shared_ptr<ASTNode> left) {
-    auto id = std::dynamic_pointer_cast<Identifier>(left);
-    if (!id) {
-         throw std::runtime_error("Function call must be on an Identifier");
-    }
-
-    eat(TokenType::LPAREN);
-    std::vector<std::shared_ptr<ASTNode>> args;
-    if (current_token.type != TokenType::RPAREN) {
-        args = parse_arg_list();
-    }
-    eat(TokenType::RPAREN);
-
-    return std::make_shared<FunctionCall>(id, args);
-}
-
-std::shared_ptr<ASTNode> Parser::parse_property_access(std::shared_ptr<ASTNode> left) {
+std::shared_ptr<ASTNode> DefaultParser::parse_dot(std::shared_ptr<ASTNode> left) {
     eat(TokenType::DOT);
-    Token<std::string> token = eat(TokenType::IDENTIFIER);
-    auto prop = std::make_shared<Identifier>(token.value);
+    Token<std::string> id_token = eat(TokenType::IDENTIFIER); // Property name must be identifier
+    auto prop = std::make_shared<Identifier>(id_token.value);
     return std::make_shared<PropertyAccess>(left, prop);
 }
 
-std::shared_ptr<ASTNode> Parser::parse_infix_expression(std::shared_ptr<ASTNode> left) {
-    Token<std::string> token = current_token;
-    int precedence = peek_precedence();
-    eat(token.type);
-    auto right = parse_expression(precedence);
-    return std::make_shared<BinaryExpression>(left, token.type, right);
-}
-
-std::vector<std::shared_ptr<ASTNode>> Parser::parse_arg_list() {
-    std::vector<std::shared_ptr<ASTNode>> args;
-    args.push_back(parse_expression(static_cast<int>(Precedence::LOWEST)));
-    while (current_token.type == TokenType::COMMA) {
-        eat(TokenType::COMMA);
-        args.push_back(parse_expression(static_cast<int>(Precedence::LOWEST)));
-    }
-    return args;
+std::shared_ptr<ASTNode> DefaultParser::parse_binary_expression(std::shared_ptr<ASTNode> left) {
+    TokenType op = current_token.type;
+    int prec = precedences[op];
+    eat(op);
+    auto right = parse_expression(prec);
+    return std::make_shared<BinaryExpression>(left, op, right);
 }
 
 } // namespace dsl

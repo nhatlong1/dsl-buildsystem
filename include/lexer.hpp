@@ -1,11 +1,15 @@
 #pragma once
 
-#include "protocols.hpp"
+#include "interfaces.hpp"
 #include <string>
 
 namespace dsl {
 
-class Lexer : public ILexer {
+class DefaultLexer : public Lexer {
+public:
+    explicit DefaultLexer(std::string input);
+    Token<std::string> get_next_token() override;
+
 private:
     std::string text;
     size_t pos;
@@ -14,15 +18,11 @@ private:
     int column;
 
     void advance();
-    char peek();
     void skip_whitespace();
+    char peek();
     Token<std::string> make_identifier();
-    Token<std::string> make_string();
     Token<std::string> make_number();
-
-public:
-    explicit Lexer(std::string input);
-    Token<std::string> get_next_token() override;
+    Token<std::string> make_string();
 };
 
 } // namespace dsl

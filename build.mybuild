@@ -3,7 +3,7 @@
 
 # Declare toolchain
 DECLARE(EXECUTABLE, gpp, "GNU C++ Compiler", "System", "g++")
-DECLARE(FLAGS, cxx_flags, "-std=c++17 -Iinclude -Wall -Wextra -fPIC")
+DECLARE(FLAGS, cxx_flags, "-std=c++17 -Iinclude -Ivendor -Wall -Wextra -fPIC") # Added -Ivendor
 DECLARE(FLAGS, link_flags, "-rdynamic -ldl") # Default Linux
 DECLARE(FLAGS, output_flag, "-o $1")
 DECLARE(FLAGS, shared_flag, "-shared -o $1")
@@ -23,21 +23,26 @@ DECLARE(VARIABLE, include_dir, "include")
 DECLARE(VARIABLE, out_dir, "bin_self_host")
 DECLARE(VARIABLE, exe_name, @"$out_dir/builder")
 
-DECLARE(VARIABLE, loop_src, "plugins/loop.cpp")
-DECLARE(VARIABLE, loop_out, @"$output_flag/plugins/loop.$ext")
-DECLARE(VARIABLE, arrays_src, "plugins/arrays.cpp")
-DECLARE(VARIABLE, arrays_out, @"$out_dir/plugins/arrays.$ext")
-DECLARE(VARIABLE, repeat_src, "plugins/repeat.cpp")
-DECLARE(VARIABLE, repeat_out, @"$out_dir/plugins/repeat.$ext")
-DECLARE(VARIABLE, stat_src, "modules/filestat.cpp")
-DECLARE(VARIABLE, stat_out, @"$out_dir/modules/filestat.$ext")
-DECLARE(VARIABLE, cache_src, "modules/buildcache.cpp")
-DECLARE(VARIABLE, cache_out, @"$out_dir/modules/buildcache.$ext")
+# Use NATIVEPATH to handle path separators
+DECLARE(VARIABLE, plugins_dir, NATIVEPATH(@"$out_dir/plugins"))
+DECLARE(VARIABLE, modules_dir, NATIVEPATH(@"$out_dir/modules"))
 
-# Ensure output directory exists
+DECLARE(VARIABLE, loop_src, "plugins/loop.cpp")
+DECLARE(VARIABLE, loop_out, @"$plugins_dir/loop.$ext")
+DECLARE(VARIABLE, arrays_src, "plugins/arrays.cpp")
+DECLARE(VARIABLE, arrays_out, @"$plugins_dir/arrays.$ext")
+DECLARE(VARIABLE, repeat_src, "plugins/repeat.cpp")
+DECLARE(VARIABLE, repeat_out, @"$plugins_dir/repeat.$ext")
+DECLARE(VARIABLE, stat_src, "modules/filestat.cpp")
+DECLARE(VARIABLE, stat_out, @"$modules_dir/filestat.$ext")
+DECLARE(VARIABLE, cache_src, "modules/buildcache.cpp")
+DECLARE(VARIABLE, cache_out, @"$modules_dir/buildcache.$ext")
+
+# Ensure output directory exists. Split mkdir to avoid tree creation issues on Windows if any.
 DECLARE(EXECUTABLE, mkdir, "Make Directory", "System", "mkdir")
-EXECUTE(mkdir, @"$out_dir/plugins")
-EXECUTE(mkdir, @"$out_dir/modules")
+EXECUTE(mkdir, NATIVEPATH(@out_dir))
+EXECUTE(mkdir, @plugins_dir)
+EXECUTE(mkdir, @modules_dir)
 
 # Build Core
 ECHO("Building Core...")
@@ -53,42 +58,43 @@ EXECUTE(
     @output_flag(@exe_name)
 )
 
-# Load Loop Plugin to use FOR loop in the build script itself!
-# We need to compile it first using raw execute before we can load it?
-# Or we can just build it now.
-
 ECHO("Building Plugins...")
 
-# Build Loop Plugin
+# Build Loop Plugin first
 EXECUTE(@gpp, @cxx_flags, @shared_flag(@loop_out), @loop_src)
 
 # Load the plugin we just built
 LOAD_PLUGIN(@loop_out)
 
-# Wait, the Array syntax [ ... ] requires arrays plugin!
-# I need to build arrays plugin first using raw execute.
-
+# Build Arrays Plugin
 EXECUTE(@gpp, @cxx_flags, @shared_flag(@arrays_out), @arrays_src)
 LOAD_PLUGIN(@arrays_out)
 
+# Build BuildCache and FileStat Plugins
+EXECUTE(@gpp, @cxx_flags, @shared_flag(@cache_out), @cache_src)
+EXECUTE(@gpp, @cxx_flags, @shared_flag(@stat_out), @stat_src)
+
+LOAD_PLUGIN(@cache_out)
+LOAD_PLUGIN(@stat_out)
+
 DECLARE(VARIABLE, plugins_to_build,
     [
-        [@arrays_src, @arrays_out],
-        [@repeat_src, @repeat_out],
-        [@stat_src, @stat_out],
-        [@cache_src, @cache_out]
+        [@repeat_src, @repeat_out]
     ]
 )
 
-# Now I can use Arrays
-# But the plugin logic in `arrays.cpp` used `parse_array_literal`.
-# Does it support nested arrays? `[[src, out], [src, out]]`
-# Yes, if implemented correctly.
-
-ECHO("Building remaining plugins using FOR loop...")
+ECHO("Building remaining plugins using FOR loop and checking cache...")
 
 FOR(item, @plugins_to_build,
-    EXECUTE(@gpp, @cxx_flags, @shared_flag(@item[1]), @item[0])
+    IF(LT(SELECT(CACHE(@item[0]), "LASTMODIFIEDDATE"), SELECT(STAT(@item[0]), "LASTMODIFIEDDATE")),
+        EXECUTE(@gpp, @cxx_flags, @shared_flag(@item[1]), @item[0])
+    )
+    IF(LT(SELECT(CACHE(@item[0]), "LASTMODIFIEDDATE"), SELECT(STAT(@item[0]), "LASTMODIFIEDDATE")),
+        ECHO(@"Updated plugin: $item[0]")
+    )
+    UPDATE(@item[0])
 )
+
+WRITEBUILDCACHE()
 
 ECHO("Self-hosted build complete.")
