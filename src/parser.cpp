@@ -24,6 +24,7 @@ void Parser::register_core_grammar() {
     // Infix
     register_infix(TokenType::LPAREN, std::bind(&Parser::parse_call_expression, this, _1), static_cast<int>(Precedence::CALL));
     register_infix(TokenType::DOT, std::bind(&Parser::parse_property_access, this, _1), static_cast<int>(Precedence::DOT));
+    register_infix(TokenType::PLUS, std::bind(&Parser::parse_infix_expression, this, _1), static_cast<int>(Precedence::SUM));
 }
 
 void Parser::register_prefix(TokenType type, std::function<std::shared_ptr<ASTNode>()> fn) {
@@ -45,9 +46,13 @@ Token<std::string> Parser::eat(TokenType type) {
         return token;
     } else {
         std::cerr << "Expected token type " << static_cast<int>(type) << " but got " << static_cast<int>(token.type)
-                  << " at line " << token.line << std::endl;
+                  << " (" << token.value << ")" << " at line " << token.line << std::endl;
         throw std::runtime_error("Parser Error");
     }
+}
+
+TokenType Parser::peek_type() {
+    return current_token.type;
 }
 
 int Parser::peek_precedence() {
@@ -92,7 +97,6 @@ std::shared_ptr<ASTNode> Parser::parse_expression(int precedence) {
 // Parsers
 
 std::shared_ptr<ASTNode> Parser::parse_identifier() {
-    // Check keyword handlers
     auto it = token_handlers.find(current_token.value);
     if (it != token_handlers.end()) {
         return it->second(*this);
@@ -153,6 +157,14 @@ std::shared_ptr<ASTNode> Parser::parse_property_access(std::shared_ptr<ASTNode> 
     Token<std::string> token = eat(TokenType::IDENTIFIER);
     auto prop = std::make_shared<Identifier>(token.value);
     return std::make_shared<PropertyAccess>(left, prop);
+}
+
+std::shared_ptr<ASTNode> Parser::parse_infix_expression(std::shared_ptr<ASTNode> left) {
+    Token<std::string> token = current_token;
+    int precedence = peek_precedence();
+    eat(token.type);
+    auto right = parse_expression(precedence);
+    return std::make_shared<BinaryExpression>(left, token.type, right);
 }
 
 std::vector<std::shared_ptr<ASTNode>> Parser::parse_arg_list() {

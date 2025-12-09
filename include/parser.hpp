@@ -15,8 +15,6 @@ private:
     std::map<TokenType, std::pair<std::function<std::shared_ptr<ASTNode>(std::shared_ptr<ASTNode>)>, int>> infix_parse_fns;
     std::map<std::string, std::function<std::shared_ptr<ASTNode>(IParser&)>> token_handlers;
 
-    int peek_precedence();
-
     // Core parsers
     std::shared_ptr<ASTNode> parse_identifier();
     std::shared_ptr<ASTNode> parse_literal();
@@ -25,6 +23,7 @@ private:
     std::shared_ptr<ASTNode> parse_deref();
     std::shared_ptr<ASTNode> parse_call_expression(std::shared_ptr<ASTNode> left);
     std::shared_ptr<ASTNode> parse_property_access(std::shared_ptr<ASTNode> left);
+    std::shared_ptr<ASTNode> parse_infix_expression(std::shared_ptr<ASTNode> left); // Generic Infix
 
     std::vector<std::shared_ptr<ASTNode>> parse_arg_list();
 
@@ -39,6 +38,8 @@ public:
     void register_token_handler(const std::string& keyword, std::function<std::shared_ptr<ASTNode>(IParser&)> fn) override;
 
     Token<std::string> eat(TokenType type) override;
+    TokenType peek_type() override;
+    int peek_precedence();
 
     void register_core_grammar();
 };

@@ -3,9 +3,29 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <filesystem>
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "interpreter.hpp"
+
+// Forward declaration
+namespace dsl {
+    void load_plugin(const std::string& path, IParser& parser, IContext& context);
+}
+
+void load_plugins_from_dir(const std::string& dir, dsl::IParser& parser, dsl::IContext& context) {
+    namespace fs = std::filesystem;
+    if (!fs::exists(dir)) return;
+
+    for (const auto& entry : fs::directory_iterator(dir)) {
+        if (entry.is_regular_file()) {
+            std::string ext = entry.path().extension().string();
+            if (ext == ".so" || ext == ".dll") {
+                dsl::load_plugin(entry.path().string(), parser, context);
+            }
+        }
+    }
+}
 
 void print_help() {
     std::cout << "Usage: builder [options] <file.mybuild>" << std::endl;
@@ -61,15 +81,19 @@ int main(int argc, char* argv[]) {
     try {
         auto lexer = std::make_shared<dsl::Lexer>(source_code);
         dsl::Parser parser(lexer);
+        dsl::Interpreter interpreter(dry_run);
+        interpreter.attach_parser(&parser);
+
+        load_plugins_from_dir("bin/plugins", parser, interpreter.get_context());
+        load_plugins_from_dir("bin/modules", parser, interpreter.get_context());
+
         auto program = parser.parse_program();
 
         if (parse_only) {
             std::cout << "Program parsed successfully." << std::endl;
-            // (Pretty print implementation skipped for MVP)
             return 0;
         }
 
-        dsl::Interpreter interpreter(dry_run);
         interpreter.visit(program.get());
 
     } catch (const std::exception& e) {

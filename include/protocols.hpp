@@ -15,7 +15,7 @@ public:
     virtual Token<std::string> get_next_token() = 0;
 };
 
-class IInterpreter; // Forward decl
+class IInterpreter;
 
 class IContext {
 public:
@@ -34,6 +34,7 @@ public:
     virtual bool is_dry_run() const = 0;
     virtual std::string interpolate_string(const std::string& s) = 0;
     virtual std::vector<Value> evaluate_args(const std::vector<std::shared_ptr<ASTNode>>& args) = 0;
+    virtual void attach_parser(class IParser* parser) = 0;
 };
 
 class IParser {
@@ -45,6 +46,7 @@ public:
     virtual void register_infix(TokenType type, std::function<std::shared_ptr<ASTNode>(std::shared_ptr<ASTNode>)> fn, int precedence) = 0;
     virtual void register_token_handler(const std::string& keyword, std::function<std::shared_ptr<ASTNode>(IParser&)> fn) = 0;
     virtual Token<std::string> eat(TokenType type) = 0;
+    virtual TokenType peek_type() = 0;
 };
 
 } // namespace dsl

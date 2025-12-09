@@ -77,7 +77,6 @@ Token<std::string> Lexer::make_string() {
     if (current_char == quote_type) {
         advance(); // Skip closing quote
     } else {
-        // Error: Unterminated string
         std::cerr << "Unterminated string at line " << line << std::endl;
     }
 
@@ -102,7 +101,6 @@ Token<std::string> Lexer::get_next_token() {
         }
 
         if (current_char == '#') {
-            // Comment
             while (current_char != '\0' && current_char != '\n') {
                 advance();
             }
@@ -123,7 +121,6 @@ Token<std::string> Lexer::get_next_token() {
 
         int start_col = column;
 
-        // Multi-character tokens
         if (current_char == '|' && peek() == '>') {
              advance(); advance();
              return {TokenType::PIPE_GT, "|>", line, start_col};
@@ -144,6 +141,7 @@ Token<std::string> Lexer::get_next_token() {
             case '.': type = TokenType::DOT; break;
             case '@': type = TokenType::AT; break;
             case '*': type = TokenType::STAR; break;
+            case '+': type = TokenType::PLUS; break; // Added PLUS
             default: found = false; break;
         }
 
@@ -152,7 +150,6 @@ Token<std::string> Lexer::get_next_token() {
             return {type, val, line, start_col};
         }
 
-        // Unknown character
         std::cerr << "Unknown character: " << current_char << " at line " << line << std::endl;
         advance();
     }

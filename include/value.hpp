@@ -12,8 +12,6 @@ namespace dsl {
 // Forward declaration
 class Value;
 
-// Using std::variant for dynamic typing
-// Monostate represents null/None
 using ValueVariant = std::variant<
     std::monostate,
     std::string,
@@ -21,11 +19,9 @@ using ValueVariant = std::variant<
     bool,
     std::shared_ptr<Flag>,
     std::shared_ptr<Executable>,
-    std::vector<Value> // Recursive definition requires wrapper or pointer. std::vector<Value> works if Value is defined.
+    std::vector<Value>,
+    std::shared_ptr<IObject>
 >;
-
-// Recursive variant definition is tricky in standard C++17 without incomplete type support in vector.
-// Typically std::vector<T> allows incomplete T in C++17, so this wrapper class helps.
 
 class Value {
 public:
@@ -39,6 +35,7 @@ public:
     Value(std::shared_ptr<Flag> f) : raw(f) {}
     Value(std::shared_ptr<Executable> e) : raw(e) {}
     Value(std::vector<Value> v) : raw(v) {}
+    Value(std::shared_ptr<IObject> o) : raw(o) {}
 
     bool is_null() const { return std::holds_alternative<std::monostate>(raw); }
     bool is_string() const { return std::holds_alternative<std::string>(raw); }
@@ -47,6 +44,7 @@ public:
     bool is_flag() const { return std::holds_alternative<std::shared_ptr<Flag>>(raw); }
     bool is_executable() const { return std::holds_alternative<std::shared_ptr<Executable>>(raw); }
     bool is_list() const { return std::holds_alternative<std::vector<Value>>(raw); }
+    bool is_object() const { return std::holds_alternative<std::shared_ptr<IObject>>(raw); }
 
     std::string as_string() const {
         if (is_string()) return std::get<std::string>(raw);
@@ -55,10 +53,10 @@ public:
         if (is_flag()) return std::get<std::shared_ptr<Flag>>(raw)->name;
         if (is_executable()) return std::get<std::shared_ptr<Executable>>(raw)->name;
         if (is_null()) return "null";
+        if (is_object()) return "[Object]";
         return "[List]";
     }
 
-    // Explicit getter helper
     template <typename T>
     const T& get() const {
         return std::get<T>(raw);

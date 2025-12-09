@@ -18,7 +18,7 @@ private:
     void skip_whitespace();
     Token<std::string> make_identifier();
     Token<std::string> make_string();
-    Token<std::string> make_number(); // Returning string for simplicity in token, parsed later
+    Token<std::string> make_number();
 
 public:
     explicit Lexer(std::string input);

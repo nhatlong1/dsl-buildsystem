@@ -3,35 +3,91 @@
 
 # Declare toolchain
 DECLARE(EXECUTABLE, gpp, "GNU C++ Compiler", "System", "g++")
-DECLARE(FLAGS, cxx_flags, "-std=c++17 -I$1 -Wall -Wextra")
+DECLARE(FLAGS, cxx_flags, "-std=c++17 -Iinclude -Wall -Wextra -fPIC")
+DECLARE(FLAGS, link_flags, "-rdynamic -ldl") # Default Linux
 DECLARE(FLAGS, output_flag, "-o $1")
+DECLARE(FLAGS, shared_flag, "-shared -o $1")
+
+# Platform specifics
+DECLARE(VARIABLE, ext, "so")
+
+IF(EQ(@OS, "windows"),
+    SET(link_flags, "")
+)
+IF(EQ(@OS, "windows"),
+    SET(ext, "dll")
+)
 
 # Declare Variables
 DECLARE(VARIABLE, include_dir, "include")
 DECLARE(VARIABLE, out_dir, "bin")
 DECLARE(VARIABLE, exe_name, "bin/builder_self_hosted")
 
-# Ensure output directory exists (Using shell command via EXECUTE for now)
+DECLARE(VARIABLE, loop_src, "plugins/loop.cpp")
+DECLARE(VARIABLE, loop_out, @"bin/plugins/loop.$ext")
+DECLARE(VARIABLE, arrays_src, "plugins/arrays.cpp")
+DECLARE(VARIABLE, arrays_out, @"bin/plugins/arrays.$ext")
+DECLARE(VARIABLE, repeat_src, "plugins/repeat.cpp")
+DECLARE(VARIABLE, repeat_out, @"bin/plugins/repeat.$ext")
+DECLARE(VARIABLE, stat_src, "modules/filestat.cpp")
+DECLARE(VARIABLE, stat_out, @"bin/modules/filestat.$ext")
+DECLARE(VARIABLE, cache_src, "modules/buildcache.cpp")
+DECLARE(VARIABLE, cache_out, @"bin/modules/buildcache.$ext")
+
+# Ensure output directory exists
 DECLARE(EXECUTABLE, mkdir, "Make Directory", "System", "mkdir")
-EXECUTE(mkdir, "-p", @out_dir)
+EXECUTE(mkdir, "-p", "bin/plugins", "bin/modules")
 
-# Build
-ECHO("Building builder using DSL...")
-
-# In the current implementation EXECUTE takes a flat list of args or flags
-# g++ -std=c++17 -Iinclude src/lexer.cpp src/parser.cpp src/interpreter.cpp src/main.cpp -o bin/builder_self_hosted
-
+# Build Core
+ECHO("Building Core...")
 EXECUTE(
     @gpp,
-    @cxx_flags(@include_dir),
+    @cxx_flags,
+    @link_flags,
     "src/lexer.cpp",
     "src/parser.cpp",
     "src/interpreter.cpp",
+    "src/plugin_loader.cpp",
     "src/main.cpp",
     @output_flag(@exe_name)
 )
 
-IF(EXISTS(@exe_name),
-    ECHO("Self-hosted build successful! Created ", @exe_name),
-    ECHO("Self-hosted build failed.")
+# Load Loop Plugin to use FOR loop in the build script itself!
+# We need to compile it first using raw execute before we can load it?
+# Or we can just build it now.
+
+ECHO("Building Plugins...")
+
+# Build Loop Plugin
+EXECUTE(@gpp, @cxx_flags, @shared_flag(@loop_out), @loop_src)
+
+# Load the plugin we just built
+LOAD_PLUGIN(@loop_out)
+
+# Wait, the Array syntax [ ... ] requires arrays plugin!
+# I need to build arrays plugin first using raw execute.
+
+EXECUTE(@gpp, @cxx_flags, @shared_flag(@arrays_out), @arrays_src)
+LOAD_PLUGIN(@arrays_out)
+
+DECLARE(VARIABLE, plugins_to_build,
+    [
+        [@arrays_src, @arrays_out],
+        [@repeat_src, @repeat_out],
+        [@stat_src, @stat_out],
+        [@cache_src, @cache_out]
+    ]
 )
+
+# Now I can use Arrays
+# But the plugin logic in `arrays.cpp` used `parse_array_literal`.
+# Does it support nested arrays? `[[src, out], [src, out]]`
+# Yes, if implemented correctly.
+
+ECHO("Building remaining plugins using FOR loop...")
+
+FOR(item, @plugins_to_build,
+    EXECUTE(@gpp, @cxx_flags, @shared_flag(@item[1]), @item[0])
+)
+
+ECHO("Self-hosted build complete.")

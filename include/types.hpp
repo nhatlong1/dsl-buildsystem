@@ -27,6 +27,7 @@ enum class TokenType {
     LBRACKET,
     RBRACKET,
     PIPE_GT,
+    PLUS, // Added PLUS
     EOF_TOKEN
 };
 
@@ -39,6 +40,7 @@ enum class SymbolType {
 
 enum class Precedence {
     LOWEST = 0,
+    SUM = 20, // Added SUM
     PIPELINE = 10,
     DOT = 30,
     PREFIX = 40,
@@ -55,8 +57,12 @@ struct Token {
 
 // --- AST Nodes ---
 
+class IInterpreter; // Forward declaration
+class Value; // Forward declaration
+
 struct ASTNode {
     virtual ~ASTNode() = default;
+    virtual void* execute(void* interpreter) { return nullptr; }
 };
 
 struct Identifier : public ASTNode {
@@ -65,16 +71,11 @@ struct Identifier : public ASTNode {
 };
 
 struct Literal : public ASTNode {
-    // Value is handled by the wrapper/visitor, but here we store the raw string repr or rely on the Token
-    // For simplicity, let's store the raw parsed value in a variant-like structure or just strings/ints
-    // But since this is AST, we might want to store specific types.
-    // For now, let's keep it generic or string-based for the parser's perspective.
     std::string string_value;
     int int_value = 0;
     bool bool_value = false;
     bool is_null = false;
 
-    // Type tracking
     enum Type { STR, INT, BOOL, NONE } type;
 
     Literal(std::string s) : string_value(std::move(s)), type(STR) {}
@@ -104,6 +105,14 @@ struct PropertyAccess : public ASTNode {
     std::shared_ptr<Identifier> property_name;
     PropertyAccess(std::shared_ptr<ASTNode> t, std::shared_ptr<Identifier> p)
         : target(std::move(t)), property_name(std::move(p)) {}
+};
+
+struct BinaryExpression : public ASTNode {
+    std::shared_ptr<ASTNode> left;
+    TokenType op;
+    std::shared_ptr<ASTNode> right;
+    BinaryExpression(std::shared_ptr<ASTNode> l, TokenType o, std::shared_ptr<ASTNode> r)
+        : left(std::move(l)), op(o), right(std::move(r)) {}
 };
 
 // --- Runtime Types ---
@@ -148,10 +157,15 @@ struct Executable {
     std::string name;
     std::string description;
     std::string source;
-    std::string path; // Optional in Python, strictly string here (empty if none)
+    std::string path;
 
     Executable(std::string n, std::string d, std::string s, std::string p)
         : name(std::move(n)), description(std::move(d)), source(std::move(s)), path(std::move(p)) {}
+};
+
+struct IObject {
+    virtual ~IObject() = default;
+    virtual Value get_property(const std::string& name) = 0;
 };
 
 } // namespace dsl
