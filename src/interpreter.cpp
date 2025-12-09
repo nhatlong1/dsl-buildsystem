@@ -59,16 +59,16 @@ Value DefaultContext::call_function(const std::string& name, const std::vector<s
 
 DefaultInterpreter::DefaultInterpreter(bool dry_run) : dry_run_mode(dry_run) {
     using namespace std::placeholders;
-    context.register_function("ECHO", std::bind(&DefaultInterpreter::func_echo, this, _1, _2));
-    context.register_function("EXECUTE", std::bind(&DefaultInterpreter::func_execute, this, _1, _2));
-    context.register_function("DECLARE", std::bind(&DefaultInterpreter::func_declare, this, _1, _2));
-    context.register_function("SET", std::bind(&DefaultInterpreter::func_set, this, _1, _2));
-    context.register_function("IF", std::bind(&DefaultInterpreter::func_if, this, _1, _2));
-    context.register_function("ARRAY", std::bind(&DefaultInterpreter::func_array, this, _1, _2));
-    context.register_function("EXISTS", std::bind(&DefaultInterpreter::func_exists, this, _1, _2));
-    context.register_function("NOT", std::bind(&DefaultInterpreter::func_not, this, _1, _2));
-    context.register_function("EQ", std::bind(&DefaultInterpreter::func_eq, this, _1, _2));
-    context.register_function("LOAD_PLUGIN", std::bind(&DefaultInterpreter::func_load_plugin, this, _1, _2));
+    context.register_function("ECHO", [this](const auto& args, auto& interp){ return func_echo(args, interp); });
+    context.register_function("EXECUTE", [this](const auto& args, auto& interp){ return func_execute(args, interp); });
+    context.register_function("DECLARE", [this](const auto& args, auto& interp){ return func_declare(args, interp); });
+    context.register_function("SET", [this](const auto& args, auto& interp){ return func_set(args, interp); });
+    context.register_function("IF", [this](const auto& args, auto& interp){ return func_if(args, interp); });
+    context.register_function("ARRAY", [this](const auto& args, auto& interp){ return func_array(args, interp); });
+    context.register_function("EXISTS", [this](const auto& args, auto& interp){ return func_exists(args, interp); });
+    context.register_function("NOT", [this](const auto& args, auto& interp){ return func_not(args, interp); });
+    context.register_function("EQ", [this](const auto& args, auto& interp){ return func_eq(args, interp); });
+    context.register_function("LOAD_PLUGIN", [this](const auto& args, auto& interp){ return func_load_plugin(args, interp); });
 
     // Register OS variable
 #if defined(_WIN32) || defined(_WIN64)
