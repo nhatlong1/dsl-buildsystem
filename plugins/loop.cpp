@@ -1,6 +1,6 @@
 #include "plugin.hpp"
 #include "types.hpp"
-#include "protocols.hpp"
+#include "interfaces.hpp"
 #include "value.hpp"
 #include <iostream>
 #include <memory>
@@ -16,7 +16,7 @@ struct ForLoopNode : public ASTNode {
         : var_name(std::move(v)), items(std::move(i)), body(std::move(b)) {}
 
     void* execute(void* interpreter_ptr) override {
-        IInterpreter* interpreter = static_cast<IInterpreter*>(interpreter_ptr);
+        Interpreter* interpreter = static_cast<Interpreter*>(interpreter_ptr);
 
         Value items_val = interpreter->visit(items.get());
         if (!items_val.is_list()) {
@@ -33,7 +33,7 @@ struct ForLoopNode : public ASTNode {
     }
 };
 
-std::shared_ptr<ASTNode> parse_for(IParser& parser) {
+std::shared_ptr<ASTNode> parse_for(Parser& parser) {
     parser.eat(TokenType::IDENTIFIER); // FOR
     parser.eat(TokenType::LPAREN);
 
@@ -51,7 +51,7 @@ std::shared_ptr<ASTNode> parse_for(IParser& parser) {
     return std::make_shared<ForLoopNode>(var_name, items, body);
 }
 
-extern "C" void register_plugin(IParser& parser, IContext& /* context */) {
+extern "C" void register_plugin(Parser& parser, Context& /* context */) {
     parser.register_token_handler("FOR", parse_for);
 }
 

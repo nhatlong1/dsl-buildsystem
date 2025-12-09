@@ -57,7 +57,7 @@ struct Token {
 
 // --- AST Nodes ---
 
-class IInterpreter; // Forward declaration
+class Interpreter; // Forward declaration
 class Value; // Forward declaration
 
 struct ASTNode {
@@ -163,8 +163,8 @@ struct Executable {
         : name(std::move(n)), description(std::move(d)), source(std::move(s)), path(std::move(p)) {}
 };
 
-struct IObject {
-    virtual ~IObject() = default;
+struct Object {
+    virtual ~Object() = default;
     virtual Value get_property(const std::string& name) = 0;
 };
 
