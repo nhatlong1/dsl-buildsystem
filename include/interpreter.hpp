@@ -7,7 +7,7 @@
 
 namespace dsl {
 
-class Context : public IContext {
+class DefaultContext : public IContext {
 private:
     std::map<std::string, Value> symbols;
     std::map<std::string, std::function<Value(const std::vector<std::shared_ptr<ASTNode>>&, IInterpreter&)>> functions;
@@ -20,9 +20,9 @@ public:
     Value call_function(const std::string& name, const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& interpreter) override;
 };
 
-class Interpreter : public IInterpreter {
+class DefaultInterpreter : public IInterpreter {
 private:
-    Context context;
+    DefaultContext context;
     bool dry_run_mode;
     IParser* attached_parser = nullptr;
 
@@ -48,7 +48,7 @@ private:
     Value visit_binary_expression(BinaryExpression* node);
 
 public:
-    explicit Interpreter(bool dry_run = false);
+    explicit DefaultInterpreter(bool dry_run = false);
 
     void attach_parser(IParser* parser) override { attached_parser = parser; }
 

@@ -6,7 +6,7 @@
 
 namespace dsl {
 
-class Parser : public IParser {
+class DefaultParser : public IParser {
 private:
     std::shared_ptr<ILexer> lexer;
     Token<std::string> current_token;
@@ -28,7 +28,7 @@ private:
     std::vector<std::shared_ptr<ASTNode>> parse_arg_list();
 
 public:
-    explicit Parser(std::shared_ptr<ILexer> l);
+    explicit DefaultParser(std::shared_ptr<ILexer> l);
 
     std::shared_ptr<Program> parse_program() override;
     std::shared_ptr<ASTNode> parse_expression(int precedence) override;

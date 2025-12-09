@@ -79,9 +79,9 @@ int main(int argc, char* argv[]) {
 
     // Pipeline
     try {
-        auto lexer = std::make_shared<dsl::Lexer>(source_code);
-        dsl::Parser parser(lexer);
-        dsl::Interpreter interpreter(dry_run);
+        auto lexer = std::make_shared<dsl::DefaultLexer>(source_code);
+        dsl::DefaultParser parser(lexer);
+        dsl::DefaultInterpreter interpreter(dry_run);
         interpreter.attach_parser(&parser);
 
         load_plugins_from_dir("bin/plugins", parser, interpreter.get_context());

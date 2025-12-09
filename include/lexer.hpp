@@ -5,7 +5,7 @@
 
 namespace dsl {
 
-class Lexer : public ILexer {
+class DefaultLexer : public ILexer {
 private:
     std::string text;
     size_t pos;
@@ -21,7 +21,7 @@ private:
     Token<std::string> make_number();
 
 public:
-    explicit Lexer(std::string input);
+    explicit DefaultLexer(std::string input);
     Token<std::string> get_next_token() override;
 };
 
