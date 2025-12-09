@@ -9,22 +9,20 @@ DefaultParser::DefaultParser(std::shared_ptr<Lexer> l) : lexer(std::move(l)) {
 }
 
 void DefaultParser::register_core_grammar() {
-    using namespace std::placeholders;
-
     // Prefix
-    register_prefix(TokenType::IDENTIFIER, std::bind(&DefaultParser::parse_identifier, this));
-    register_prefix(TokenType::STRING, std::bind(&DefaultParser::parse_literal, this));
-    register_prefix(TokenType::NUMBER, std::bind(&DefaultParser::parse_literal, this));
-    register_prefix(TokenType::BOOLEAN, std::bind(&DefaultParser::parse_literal, this));
-    register_prefix(TokenType::NULL_TYPE, std::bind(&DefaultParser::parse_literal, this));
-    register_prefix(TokenType::STAR, std::bind(&DefaultParser::parse_identifier_star, this));
-    register_prefix(TokenType::LPAREN, std::bind(&DefaultParser::parse_grouped_expression, this));
-    register_prefix(TokenType::AT, std::bind(&DefaultParser::parse_deref, this));
+    register_prefix(TokenType::IDENTIFIER, [this] { return parse_identifier(); });
+    register_prefix(TokenType::STRING, [this] { return parse_literal(); });
+    register_prefix(TokenType::NUMBER, [this] { return parse_literal(); });
+    register_prefix(TokenType::BOOLEAN, [this] { return parse_literal(); });
+    register_prefix(TokenType::NULL_TYPE, [this] { return parse_literal(); });
+    register_prefix(TokenType::STAR, [this] { return parse_identifier_star(); });
+    register_prefix(TokenType::LPAREN, [this] { return parse_grouped_expression(); });
+    register_prefix(TokenType::AT, [this] { return parse_deref(); });
 
     // Infix
-    register_infix(TokenType::LPAREN, std::bind(&DefaultParser::parse_call_expression, this, _1), static_cast<int>(Precedence::CALL));
-    register_infix(TokenType::DOT, std::bind(&DefaultParser::parse_property_access, this, _1), static_cast<int>(Precedence::DOT));
-    register_infix(TokenType::PLUS, std::bind(&DefaultParser::parse_infix_expression, this, _1), static_cast<int>(Precedence::SUM));
+    register_infix(TokenType::LPAREN, [this](auto left) { return parse_call_expression(left); }, static_cast<int>(Precedence::CALL));
+    register_infix(TokenType::DOT, [this](auto left) { return parse_property_access(left); }, static_cast<int>(Precedence::DOT));
+    register_infix(TokenType::PLUS, [this](auto left) { return parse_infix_expression(left); }, static_cast<int>(Precedence::SUM));
 }
 
 void DefaultParser::register_prefix(TokenType type, std::function<std::shared_ptr<ASTNode>()> fn) {
