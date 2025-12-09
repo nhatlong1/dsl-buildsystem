@@ -1,11 +1,11 @@
 #pragma once
 
-#include "protocols.hpp"
+#include "interfaces.hpp"
 #include <string>
 
 namespace dsl {
 
-class DefaultLexer : public ILexer {
+class DefaultLexer : public Lexer {
 private:
     std::string text;
     size_t pos;

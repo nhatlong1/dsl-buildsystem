@@ -1,6 +1,6 @@
 #include "plugin.hpp"
 #include "types.hpp"
-#include "protocols.hpp"
+#include "interfaces.hpp"
 #include "value.hpp"
 #include <iostream>
 #include <memory>
@@ -14,7 +14,7 @@ struct RepeatNode : public ASTNode {
     RepeatNode(int c, std::shared_ptr<ASTNode> b) : count(c), body(std::move(b)) {}
 
     void* execute(void* interpreter_ptr) override {
-        IInterpreter* interpreter = static_cast<IInterpreter*>(interpreter_ptr);
+        Interpreter* interpreter = static_cast<Interpreter*>(interpreter_ptr);
         for (int i = 0; i < count; ++i) {
             interpreter->visit(body.get());
         }
@@ -22,7 +22,7 @@ struct RepeatNode : public ASTNode {
     }
 };
 
-std::shared_ptr<ASTNode> parse_repeat(IParser& parser) {
+std::shared_ptr<ASTNode> parse_repeat(Parser& parser) {
     parser.eat(TokenType::IDENTIFIER); // REPEAT
     parser.eat(TokenType::LPAREN);
 
@@ -37,7 +37,7 @@ std::shared_ptr<ASTNode> parse_repeat(IParser& parser) {
     return std::make_shared<RepeatNode>(count, body);
 }
 
-extern "C" void register_plugin(dsl::IParser& parser, dsl::IContext& /* context */) {
+extern "C" void register_plugin(dsl::Parser& parser, dsl::Context& /* context */) {
     parser.register_token_handler("REPEAT", parse_repeat);
 }
 

@@ -8,7 +8,7 @@
 namespace dsl {
 
 // Forward declaration
-void load_plugin(const std::string& path, IParser& parser, IContext& context);
+void load_plugin(const std::string& path, Parser& parser, Context& context);
 
 // --- Context ---
 
@@ -24,11 +24,11 @@ void DefaultContext::set(const std::string& name, Value value) {
     symbols[name] = value;
 }
 
-void DefaultContext::register_function(const std::string& name, std::function<Value(const std::vector<std::shared_ptr<ASTNode>>&, IInterpreter&)> func) {
+void DefaultContext::register_function(const std::string& name, std::function<Value(const std::vector<std::shared_ptr<ASTNode>>&, Interpreter&)> func) {
     functions[name] = func;
 }
 
-Value DefaultContext::call_function(const std::string& name, const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& interpreter) {
+Value DefaultContext::call_function(const std::string& name, const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& interpreter) {
     auto it = functions.find(name);
     if (it != functions.end()) {
         return it->second(args, interpreter);
@@ -99,7 +99,7 @@ Value DefaultInterpreter::visit(ASTNode* node) {
     return Value();
 }
 
-IContext& DefaultInterpreter::get_context() {
+Context& DefaultInterpreter::get_context() {
     return context;
 }
 
@@ -190,7 +190,7 @@ Value DefaultInterpreter::visit_property_access(PropertyAccess* node) {
     }
 
     if (obj.is_object()) {
-        auto object = obj.get<std::shared_ptr<IObject>>();
+        auto object = obj.get<std::shared_ptr<Object>>();
         return object->get_property(prop);
     }
 
@@ -210,7 +210,7 @@ Value DefaultInterpreter::visit_binary_expression(BinaryExpression* node) {
 
 // Core Functions
 
-Value DefaultInterpreter::func_echo(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& /* interp */) {
+Value DefaultInterpreter::func_echo(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
     auto vals = evaluate_args(args);
     for (size_t i = 0; i < vals.size(); ++i) {
         std::cout << vals[i].as_string() << (i == vals.size() - 1 ? "" : " ");
@@ -219,18 +219,18 @@ Value DefaultInterpreter::func_echo(const std::vector<std::shared_ptr<ASTNode>>&
     return Value(true);
 }
 
-Value DefaultInterpreter::func_array(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& /* interp */) {
+Value DefaultInterpreter::func_array(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
     return Value(evaluate_args(args));
 }
 
-Value DefaultInterpreter::func_not(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& /* interp */) {
+Value DefaultInterpreter::func_not(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
      auto vals = evaluate_args(args);
      if (vals.empty()) return Value(true);
      if (vals[0].is_bool()) return Value(!vals[0].get<bool>());
      return Value(false);
 }
 
-Value DefaultInterpreter::func_eq(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& /* interp */) {
+Value DefaultInterpreter::func_eq(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
      auto vals = evaluate_args(args);
      if (vals.size() < 2) return Value(false);
 
@@ -241,13 +241,13 @@ Value DefaultInterpreter::func_eq(const std::vector<std::shared_ptr<ASTNode>>& a
      return Value(false);
 }
 
-Value DefaultInterpreter::func_exists(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& /* interp */) {
+Value DefaultInterpreter::func_exists(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
     auto vals = evaluate_args(args);
     if (vals.empty()) return Value(false);
     return Value(std::filesystem::exists(vals[0].as_string()));
 }
 
-Value DefaultInterpreter::func_declare(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& /* interp */) {
+Value DefaultInterpreter::func_declare(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
     auto type_node = args[0];
     auto name_node = args[1];
 
@@ -273,7 +273,7 @@ Value DefaultInterpreter::func_declare(const std::vector<std::shared_ptr<ASTNode
     return Value();
 }
 
-Value DefaultInterpreter::func_set(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& /* interp */) {
+Value DefaultInterpreter::func_set(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
     auto name_node = args[0];
     std::string name;
     if (auto id = dynamic_cast<Identifier*>(name_node.get())) name = id->name;
@@ -284,7 +284,7 @@ Value DefaultInterpreter::func_set(const std::vector<std::shared_ptr<ASTNode>>& 
     return Value();
 }
 
-Value DefaultInterpreter::func_if(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& /* interp */) {
+Value DefaultInterpreter::func_if(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
     Value cond = visit(args[0].get());
     bool is_true = false;
     if (cond.is_bool()) is_true = cond.get<bool>();
@@ -299,7 +299,7 @@ Value DefaultInterpreter::func_if(const std::vector<std::shared_ptr<ASTNode>>& a
     return Value();
 }
 
-Value DefaultInterpreter::func_execute(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& /* interp */) {
+Value DefaultInterpreter::func_execute(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
     auto evaluated_args = evaluate_args(args);
     if (evaluated_args.empty()) return Value();
 
@@ -361,7 +361,7 @@ Value DefaultInterpreter::func_execute(const std::vector<std::shared_ptr<ASTNode
     return Value();
 }
 
-Value DefaultInterpreter::func_load_plugin(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& /* interp */) {
+Value DefaultInterpreter::func_load_plugin(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
     if (!attached_parser) {
         std::cerr << "Cannot load plugins: No parser attached to interpreter." << std::endl;
         return Value();

@@ -3,7 +3,7 @@
 
 namespace dsl {
 
-DefaultParser::DefaultParser(std::shared_ptr<ILexer> l) : lexer(std::move(l)) {
+DefaultParser::DefaultParser(std::shared_ptr<Lexer> l) : lexer(std::move(l)) {
     current_token = lexer->get_next_token();
     register_core_grammar();
 }
@@ -35,7 +35,7 @@ void DefaultParser::register_infix(TokenType type, std::function<std::shared_ptr
     infix_parse_fns[type] = {fn, precedence};
 }
 
-void DefaultParser::register_token_handler(const std::string& keyword, std::function<std::shared_ptr<ASTNode>(IParser&)> fn) {
+void DefaultParser::register_token_handler(const std::string& keyword, std::function<std::shared_ptr<ASTNode>(Parser&)> fn) {
     token_handlers[keyword] = fn;
 }
 

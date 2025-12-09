@@ -1,6 +1,6 @@
 #include "plugin.hpp"
 #include "types.hpp"
-#include "protocols.hpp"
+#include "interfaces.hpp"
 #include "value.hpp"
 #include <iostream>
 #include <fstream>
@@ -22,7 +22,7 @@ std::string escape_json(const std::string& s) {
     return res;
 }
 
-class CacheEntry : public IObject {
+class CacheEntry : public Object {
     std::map<std::string, Value> data;
 public:
     explicit CacheEntry(std::map<std::string, Value> d) : data(std::move(d)) {}
@@ -81,18 +81,18 @@ public:
 
 static BuildCache global_cache;
 
-Value func_cache(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& interp) {
+Value func_cache(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& interp) {
     if (args.empty()) return Value();
     auto path = interp.visit(args[0].get()).as_string();
     return Value(std::make_shared<CacheEntry>(global_cache.get_entry(path)));
 }
 
-Value func_write(const std::vector<std::shared_ptr<ASTNode>>& /* args */, IInterpreter& /* interp */) {
+Value func_write(const std::vector<std::shared_ptr<ASTNode>>& /* args */, Interpreter& /* interp */) {
     global_cache.save();
     return Value();
 }
 
-Value func_update(const std::vector<std::shared_ptr<ASTNode>>& args, IInterpreter& interp) {
+Value func_update(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& interp) {
     if (args.empty()) return Value();
     auto path = interp.visit(args[0].get()).as_string();
     if (std::filesystem::exists(path)) {
@@ -104,7 +104,7 @@ Value func_update(const std::vector<std::shared_ptr<ASTNode>>& args, IInterprete
     return Value();
 }
 
-extern "C" void register_plugin(dsl::IParser& /* parser */, dsl::IContext& context) {
+extern "C" void register_plugin(dsl::Parser& /* parser */, dsl::Context& context) {
     context.register_function("CACHE", func_cache);
     context.register_function("WRITEBUILDCACHE", func_write);
     context.register_function("UPDATE", func_update);

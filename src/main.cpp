@@ -10,10 +10,10 @@
 
 // Forward declaration
 namespace dsl {
-    void load_plugin(const std::string& path, IParser& parser, IContext& context);
+    void load_plugin(const std::string& path, Parser& parser, Context& context);
 }
 
-void load_plugins_from_dir(const std::string& dir, dsl::IParser& parser, dsl::IContext& context) {
+void load_plugins_from_dir(const std::string& dir, dsl::Parser& parser, dsl::Context& context) {
     namespace fs = std::filesystem;
     if (!fs::exists(dir)) return;
 
