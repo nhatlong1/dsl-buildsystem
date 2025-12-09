@@ -20,23 +20,24 @@ IF(EQ(@OS, "windows"),
 
 # Declare Variables
 DECLARE(VARIABLE, include_dir, "include")
-DECLARE(VARIABLE, out_dir, "bin")
-DECLARE(VARIABLE, exe_name, "bin/builder_self_hosted")
+DECLARE(VARIABLE, out_dir, "bin_self_host")
+DECLARE(VARIABLE, exe_name, @"$out_dir/builder")
 
 DECLARE(VARIABLE, loop_src, "plugins/loop.cpp")
-DECLARE(VARIABLE, loop_out, @"bin/plugins/loop.$ext")
+DECLARE(VARIABLE, loop_out, @"$output_flag/plugins/loop.$ext")
 DECLARE(VARIABLE, arrays_src, "plugins/arrays.cpp")
-DECLARE(VARIABLE, arrays_out, @"bin/plugins/arrays.$ext")
+DECLARE(VARIABLE, arrays_out, @"$out_dir/plugins/arrays.$ext")
 DECLARE(VARIABLE, repeat_src, "plugins/repeat.cpp")
-DECLARE(VARIABLE, repeat_out, @"bin/plugins/repeat.$ext")
+DECLARE(VARIABLE, repeat_out, @"$out_dir/plugins/repeat.$ext")
 DECLARE(VARIABLE, stat_src, "modules/filestat.cpp")
-DECLARE(VARIABLE, stat_out, @"bin/modules/filestat.$ext")
+DECLARE(VARIABLE, stat_out, @"$out_dir/modules/filestat.$ext")
 DECLARE(VARIABLE, cache_src, "modules/buildcache.cpp")
-DECLARE(VARIABLE, cache_out, @"bin/modules/buildcache.$ext")
+DECLARE(VARIABLE, cache_out, @"$out_dir/modules/buildcache.$ext")
 
 # Ensure output directory exists
 DECLARE(EXECUTABLE, mkdir, "Make Directory", "System", "mkdir")
-EXECUTE(mkdir, "-p", "bin/plugins", "bin/modules")
+EXECUTE(mkdir, @"$out_dir/plugins")
+EXECUTE(mkdir, @"$out_dir/modules")
 
 # Build Core
 ECHO("Building Core...")
