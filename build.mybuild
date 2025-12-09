@@ -24,7 +24,7 @@ DECLARE(VARIABLE, out_dir, "bin_self_host")
 DECLARE(VARIABLE, exe_name, @"$out_dir/builder")
 
 DECLARE(VARIABLE, loop_src, "plugins/loop.cpp")
-DECLARE(VARIABLE, loop_out, @"$output_flag/plugins/loop.$ext")
+DECLARE(VARIABLE, loop_out, @"$out_dir/plugins/loop.$ext")
 DECLARE(VARIABLE, arrays_src, "plugins/arrays.cpp")
 DECLARE(VARIABLE, arrays_out, @"$out_dir/plugins/arrays.$ext")
 DECLARE(VARIABLE, repeat_src, "plugins/repeat.cpp")
@@ -36,8 +36,8 @@ DECLARE(VARIABLE, cache_out, @"$out_dir/modules/buildcache.$ext")
 
 # Ensure output directory exists
 DECLARE(EXECUTABLE, mkdir, "Make Directory", "System", "mkdir")
-EXECUTE(mkdir, @"$out_dir/plugins")
-EXECUTE(mkdir, @"$out_dir/modules")
+EXECUTE(mkdir, "-p", @"$out_dir/plugins")
+EXECUTE(mkdir, "-p", @"$out_dir/modules")
 
 # Build Core
 ECHO("Building Core...")

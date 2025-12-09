@@ -1,6 +1,6 @@
 #pragma once
 
-#include "protocols.hpp"
+#include "interfaces.hpp"
 #include <string>
 
 // Standard entry point name for plugins
