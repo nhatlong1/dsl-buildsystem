@@ -20,7 +20,7 @@ using ValueVariant = std::variant<
     std::shared_ptr<Flag>,
     std::shared_ptr<Executable>,
     std::vector<Value>,
-    std::shared_ptr<IObject>
+    std::shared_ptr<Object>
 >;
 
 class Value {
@@ -35,7 +35,7 @@ public:
     Value(std::shared_ptr<Flag> f) : raw(f) {}
     Value(std::shared_ptr<Executable> e) : raw(e) {}
     Value(std::vector<Value> v) : raw(v) {}
-    Value(std::shared_ptr<IObject> o) : raw(o) {}
+    Value(std::shared_ptr<Object> o) : raw(o) {}
 
     bool is_null() const { return std::holds_alternative<std::monostate>(raw); }
     bool is_string() const { return std::holds_alternative<std::string>(raw); }
@@ -44,7 +44,7 @@ public:
     bool is_flag() const { return std::holds_alternative<std::shared_ptr<Flag>>(raw); }
     bool is_executable() const { return std::holds_alternative<std::shared_ptr<Executable>>(raw); }
     bool is_list() const { return std::holds_alternative<std::vector<Value>>(raw); }
-    bool is_object() const { return std::holds_alternative<std::shared_ptr<IObject>>(raw); }
+    bool is_object() const { return std::holds_alternative<std::shared_ptr<Object>>(raw); }
 
     std::string as_string() const {
         if (is_string()) return std::get<std::string>(raw);
