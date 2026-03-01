@@ -39,7 +39,7 @@ build_plugin() {
         -o $OUT
 }
 
-if [[ "$OS" != "windows" ]]; then
+f [[ "$OS" != "windows" ]]; then
     g++ -std=c++17 -Iinclude $FPIC -rdynamic \
         src/lexer.cpp \
         src/parser.cpp \
