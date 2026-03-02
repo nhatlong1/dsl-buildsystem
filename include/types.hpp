@@ -63,11 +63,16 @@ class Value; // Forward declaration
 struct ASTNode {
     virtual ~ASTNode() = default;
     virtual void* execute(void* interpreter) { return nullptr; }
+    virtual std::string node_name() const { return "ASTNode"; }
+    virtual std::vector<std::shared_ptr<ASTNode>> get_children() const { return {}; }
 };
+
+void print_ast(const std::shared_ptr<ASTNode>& node, const std::string& prefix = "", bool is_last = true);
 
 struct Identifier : public ASTNode {
     std::string name;
     explicit Identifier(std::string n) : name(std::move(n)) {}
+    std::string node_name() const override { return "Identifier(" + name + ")"; }
 };
 
 struct Literal : public ASTNode {
@@ -82,10 +87,22 @@ struct Literal : public ASTNode {
     Literal(int i) : int_value(i), type(INT) {}
     Literal(bool b) : bool_value(b), type(BOOL) {}
     Literal() : is_null(true), type(NONE) {}
+
+    std::string node_name() const override {
+        switch (type) {
+            case STR: return "Literal(\"" + string_value + "\")";
+            case INT: return "Literal(" + std::to_string(int_value) + ")";
+            case BOOL: return "Literal(" + std::string(bool_value ? "true" : "false") + ")";
+            case NONE: return "Literal(null)";
+        }
+        return "Literal";
+    }
 };
 
 struct Program : public ASTNode {
     std::vector<std::shared_ptr<ASTNode>> statements;
+    std::string node_name() const override { return "Program"; }
+    std::vector<std::shared_ptr<ASTNode>> get_children() const override { return statements; }
 };
 
 struct FunctionCall : public ASTNode {
@@ -93,11 +110,20 @@ struct FunctionCall : public ASTNode {
     std::vector<std::shared_ptr<ASTNode>> args;
     FunctionCall(std::shared_ptr<Identifier> n, std::vector<std::shared_ptr<ASTNode>> a)
         : name(std::move(n)), args(std::move(a)) {}
+    std::string node_name() const override { return "FunctionCall"; }
+    std::vector<std::shared_ptr<ASTNode>> get_children() const override {
+        std::vector<std::shared_ptr<ASTNode>> children;
+        children.push_back(name);
+        children.insert(children.end(), args.begin(), args.end());
+        return children;
+    }
 };
 
 struct VariableDeref : public ASTNode {
     std::shared_ptr<ASTNode> target;
     explicit VariableDeref(std::shared_ptr<ASTNode> t) : target(std::move(t)) {}
+    std::string node_name() const override { return "VariableDeref"; }
+    std::vector<std::shared_ptr<ASTNode>> get_children() const override { return {target}; }
 };
 
 struct PropertyAccess : public ASTNode {
@@ -105,6 +131,8 @@ struct PropertyAccess : public ASTNode {
     std::shared_ptr<Identifier> property_name;
     PropertyAccess(std::shared_ptr<ASTNode> t, std::shared_ptr<Identifier> p)
         : target(std::move(t)), property_name(std::move(p)) {}
+    std::string node_name() const override { return "PropertyAccess"; }
+    std::vector<std::shared_ptr<ASTNode>> get_children() const override { return {target, property_name}; }
 };
 
 struct BinaryExpression : public ASTNode {
@@ -113,6 +141,17 @@ struct BinaryExpression : public ASTNode {
     std::shared_ptr<ASTNode> right;
     BinaryExpression(std::shared_ptr<ASTNode> l, TokenType o, std::shared_ptr<ASTNode> r)
         : left(std::move(l)), op(o), right(std::move(r)) {}
+    std::string node_name() const override {
+        std::string op_str;
+        switch (op) {
+            case TokenType::PLUS: op_str = "+"; break;
+            case TokenType::PIPE_GT: op_str = "|>"; break;
+            case TokenType::DOT: op_str = "."; break;
+            default: op_str = "op(" + std::to_string(static_cast<int>(op)) + ")"; break;
+        }
+        return "BinaryExpression(" + op_str + ")";
+    }
+    std::vector<std::shared_ptr<ASTNode>> get_children() const override { return {left, right}; }
 };
 
 // --- Runtime Types ---

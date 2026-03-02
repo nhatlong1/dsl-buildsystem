@@ -40,7 +40,7 @@ public:
 class Parser {
 public:
     virtual ~Parser() = default;
-    virtual std::shared_ptr<Program> parse_program() = 0;
+    virtual std::shared_ptr<Program> parse_program(bool parse_only = false) = 0;
     virtual std::shared_ptr<ASTNode> parse_expression(int precedence) = 0;
     virtual void register_prefix(TokenType type, std::function<std::shared_ptr<ASTNode>()> fn) = 0;
     virtual void register_infix(TokenType type, std::function<std::shared_ptr<ASTNode>(std::shared_ptr<ASTNode>)> fn, int precedence) = 0;

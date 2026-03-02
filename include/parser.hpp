@@ -30,7 +30,7 @@ private:
 public:
     explicit DefaultParser(std::shared_ptr<Lexer> l);
 
-    std::shared_ptr<Program> parse_program() override;
+    std::shared_ptr<Program> parse_program(bool parse_only = false) override;
     std::shared_ptr<ASTNode> parse_expression(int precedence) override;
 
     void register_prefix(TokenType type, std::function<std::shared_ptr<ASTNode>()> fn) override;

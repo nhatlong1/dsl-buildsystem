@@ -15,6 +15,9 @@ struct ForLoopNode : public ASTNode {
     ForLoopNode(std::string v, std::shared_ptr<ASTNode> i, std::shared_ptr<ASTNode> b)
         : var_name(std::move(v)), items(std::move(i)), body(std::move(b)) {}
 
+    std::string node_name() const override { return "ForLoopNode(" + var_name + ")"; }
+    std::vector<std::shared_ptr<ASTNode>> get_children() const override { return {items, body}; }
+
     void* execute(void* interpreter_ptr) override {
         Interpreter* interpreter = static_cast<Interpreter*>(interpreter_ptr);
 

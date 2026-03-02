@@ -1,20 +1,22 @@
-# Patch Extension
+# Patch Extension (Proposed)
 
-The `patch` plugin allows dynamic replacement of symbol values.
+> **Status**: Proposed. Not yet implemented. See `extensions/ext05.patchconstruct.ebnf.txt` for the grammar specification.
 
-## Syntax
+The patch extension would allow dynamic replacement of symbol values.
+
+## Proposed Syntax
 
 ```ebnf
 patch ::= "PATCH" "(" identifier "," identifier ")"
 ```
 
-## Usage
+## Proposed Usage
 
 ```
 PATCH(target_symbol, source_symbol)
 ```
 
-The `PATCH` command updates `target_symbol` with the value of `source_symbol`.
+`PATCH` would update `target_symbol` with the value of `source_symbol`.
 
 ### Example
 

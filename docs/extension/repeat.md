@@ -1,20 +1,39 @@
-# REPEAT Extension
+# Repeat Extension (`REPEAT`)
 
-The `repeat` plugin adds a loop construct to the language.
+**Plugin**: `plugins/repeat.cpp` (compiled to `repeat.dll` / `repeat.so`)
+
+Adds a `REPEAT` construct for executing an expression a fixed number of times.
 
 ## Syntax
 
 ```ebnf
-statement ::= ... | repeat_stmt
-repeat_stmt ::= "REPEAT" "(" number "," statement ")"
-```
-
-## Example
-
-```
-REPEAT(3, ECHO("This prints 3 times"))
+repeat_stmt ::= "REPEAT" "(" number "," expression ")"
 ```
 
 ## Usage
 
-Ensure the `repeat.py` file is in the `plugins/` directory. The parser automatically loads it.
+```
+REPEAT(count, body)
+```
+
+- `count` — A numeric literal specifying how many times to repeat.
+- `body` — Expression executed on each iteration.
+
+## Examples
+
+```
+REPEAT(3, ECHO("Hello"))
+/* Output:
+   Hello
+   Hello
+   Hello
+*/
+```
+
+```
+REPEAT(5, EXECUTE(@gpp, "--version"))
+```
+
+## Loading
+
+The repeat plugin must be compiled and placed in `bin/plugins/`. It is loaded automatically at startup.

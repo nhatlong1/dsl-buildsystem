@@ -3,19 +3,23 @@
 
 # Declare toolchain
 DECLARE(EXECUTABLE, gpp, "GNU C++ Compiler", "System", "g++")
-DECLARE(FLAGS, cxx_flags, "-std=c++17 -Iinclude -Wall -Wextra -fPIC")
+DECLARE(FLAGS, cxx_flags, "-std=c++17 -Iinclude -fPIC")
 DECLARE(FLAGS, link_flags, "-rdynamic -ldl") # Default Linux
 DECLARE(FLAGS, output_flag, "-o $1")
 DECLARE(FLAGS, shared_flag, "-shared -o $1")
 
-# Platform specifics
-DECLARE(VARIABLE, ext, "so")
+# Platform detection via PLATFORM() constant function
+# PLATFORM()              -> "windows" | "linux" | "macos"
+# PLATFORM("arch")        -> "x86_64" | "arm64" | ...
+# PLATFORM("shared_ext")  -> "dll" | "so" | "dylib"
+# PLATFORM("exe_ext")     -> ".exe" | ""
+# PLATFORM("is_windows")  -> TRUE | FALSE
 
-IF(EQ(@OS, "windows"),
+DECLARE(VARIABLE, ext, PLATFORM("shared_ext"))
+
+# Platform specifics
+IF(PLATFORM("is_windows"),
     SET(link_flags, "")
-)
-IF(EQ(@OS, "windows"),
-    SET(ext, "dll")
 )
 
 # Declare Variables
@@ -24,7 +28,7 @@ DECLARE(VARIABLE, out_dir, "bin_self_host")
 DECLARE(VARIABLE, exe_name, @"$out_dir/builder")
 
 DECLARE(VARIABLE, loop_src, "plugins/loop.cpp")
-DECLARE(VARIABLE, loop_out, @"$output_flag/plugins/loop.$ext")
+DECLARE(VARIABLE, loop_out, @"$out_dir/plugins/loop.$ext")
 DECLARE(VARIABLE, arrays_src, "plugins/arrays.cpp")
 DECLARE(VARIABLE, arrays_out, @"$out_dir/plugins/arrays.$ext")
 DECLARE(VARIABLE, repeat_src, "plugins/repeat.cpp")
@@ -54,10 +58,9 @@ EXECUTE(
 )
 
 # Load Loop Plugin to use FOR loop in the build script itself!
-# We need to compile it first using raw execute before we can load it?
-# Or we can just build it now.
+# We can just build it now.
 
-ECHO("Building Plugins...")
+ECHO("Building Loop Plugin...")
 
 # Build Loop Plugin
 EXECUTE(@gpp, @cxx_flags, @shared_flag(@loop_out), @loop_src)
@@ -65,25 +68,24 @@ EXECUTE(@gpp, @cxx_flags, @shared_flag(@loop_out), @loop_src)
 # Load the plugin we just built
 LOAD_PLUGIN(@loop_out)
 
-# Wait, the Array syntax [ ... ] requires arrays plugin!
-# I need to build arrays plugin first using raw execute.
+# The Array syntax [ ... ] requires arrays plugin
+# Build arrays plugin first using raw execute.
+
+ECHO("Building Array Plugin...")
 
 EXECUTE(@gpp, @cxx_flags, @shared_flag(@arrays_out), @arrays_src)
 LOAD_PLUGIN(@arrays_out)
 
 DECLARE(VARIABLE, plugins_to_build,
     [
-        [@arrays_src, @arrays_out],
         [@repeat_src, @repeat_out],
         [@stat_src, @stat_out],
         [@cache_src, @cache_out]
     ]
 )
 
-# Now I can use Arrays
-# But the plugin logic in `arrays.cpp` used `parse_array_literal`.
-# Does it support nested arrays? `[[src, out], [src, out]]`
-# Yes, if implemented correctly.
+# Now we can use Arrays
+# If implemented correctly, it will build the rest of the plugins.
 
 ECHO("Building remaining plugins using FOR loop...")
 

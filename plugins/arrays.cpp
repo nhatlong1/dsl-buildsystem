@@ -14,6 +14,9 @@ struct ArrayNode : public ASTNode {
 
     explicit ArrayNode(std::vector<std::shared_ptr<ASTNode>> i) : items(std::move(i)) {}
 
+    std::string node_name() const override { return "ArrayNode"; }
+    std::vector<std::shared_ptr<ASTNode>> get_children() const override { return items; }
+
     void* execute(void* interpreter_ptr) override {
         Interpreter* interpreter = static_cast<Interpreter*>(interpreter_ptr);
         std::vector<Value> evaluated_items;
@@ -30,6 +33,9 @@ struct IndexNode : public ASTNode {
     std::shared_ptr<ASTNode> index;
 
     IndexNode(std::shared_ptr<ASTNode> t, std::shared_ptr<ASTNode> i) : target(std::move(t)), index(std::move(i)) {}
+
+    std::string node_name() const override { return "IndexNode"; }
+    std::vector<std::shared_ptr<ASTNode>> get_children() const override { return {target, index}; }
 
     void* execute(void* interpreter_ptr) override {
         Interpreter* interpreter = static_cast<Interpreter*>(interpreter_ptr);

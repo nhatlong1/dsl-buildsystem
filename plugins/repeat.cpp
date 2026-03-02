@@ -13,6 +13,9 @@ struct RepeatNode : public ASTNode {
 
     RepeatNode(int c, std::shared_ptr<ASTNode> b) : count(c), body(std::move(b)) {}
 
+    std::string node_name() const override { return "RepeatNode(" + std::to_string(count) + ")"; }
+    std::vector<std::shared_ptr<ASTNode>> get_children() const override { return {body}; }
+
     void* execute(void* interpreter_ptr) override {
         Interpreter* interpreter = static_cast<Interpreter*>(interpreter_ptr);
         for (int i = 0; i < count; ++i) {

@@ -1,6 +1,8 @@
 # FILESTAT Module
 
-Provides file status and existence checks.
+**Source**: `modules/filestat.cpp` (compiled to `filestat.dll` / `filestat.so`)
+
+Provides file status and existence checks. Used for incremental builds to detect when source files have changed.
 
 ## Import
 
@@ -12,9 +14,44 @@ USING(FILESTAT, *)
 ## Functions
 
 ### `STAT(Path)`
-Returns a file status object.
-Properties:
-- `LASTMODIFIEDDATE`: Timestamp of last modification.
+
+Returns a file status object for the given path. The object exposes properties accessible via `.` notation.
+
+**Properties**:
+
+| Property           | Type   | Description                                          |
+| ------------------ | ------ | ---------------------------------------------------- |
+| `LASTMODIFIEDDATE` | Number | Timestamp of last modification (seconds since epoch) |
+
+```
+DECLARE(VARIABLE, info, STAT("main.cpp"))
+ECHO(@info.LASTMODIFIEDDATE)
+```
+
+Or inline:
+
+```
+STAT("main.cpp").LASTMODIFIEDDATE
+```
 
 ### `EXISTS(Path)`
-Returns `TRUE` if the file/directory exists, `FALSE` otherwise.
+
+Returns `TRUE` if the file or directory exists on disk, `FALSE` otherwise.
+
+```
+IF(EXISTS("main.cpp"), ECHO("File found"))
+```
+
+## Typical Usage
+
+Compare file timestamps against cached values for incremental builds:
+
+```
+IF(NEQ(
+    STAT("main.cpp").LASTMODIFIEDDATE,
+    CACHE("main.cpp").LASTMODIFIEDDATE
+  ),
+  EXECUTE(@gpp, "main.cpp", "-o", "main"),
+  ECHO("main.cpp up to date")
+)
+```

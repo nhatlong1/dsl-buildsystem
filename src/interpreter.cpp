@@ -5,373 +5,554 @@
 #include <sstream>
 #include <filesystem>
 
-namespace dsl {
+namespace dsl
+{
 
-// Forward declaration
-void load_plugin(const std::string& path, Parser& parser, Context& context);
+    // Forward declaration
+    void load_plugin(const std::string &path, Parser &parser, Context &context);
 
-// --- Context ---
+    // --- Context ---
 
-Value DefaultContext::get(const std::string& name) {
-    auto it = symbols.find(name);
-    if (it != symbols.end()) {
-        return it->second;
-    }
-    return Value(); // Null
-}
-
-void DefaultContext::set(const std::string& name, Value value) {
-    symbols[name] = value;
-}
-
-void DefaultContext::register_function(const std::string& name, std::function<Value(const std::vector<std::shared_ptr<ASTNode>>&, Interpreter&)> func) {
-    functions[name] = func;
-}
-
-Value DefaultContext::call_function(const std::string& name, const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& interpreter) {
-    auto it = functions.find(name);
-    if (it != functions.end()) {
-        return it->second(args, interpreter);
+    Value DefaultContext::get(const std::string &name)
+    {
+        auto it = symbols.find(name);
+        if (it != symbols.end())
+        {
+            return it->second;
+        }
+        return Value(); // Null
     }
 
-    Value val = get(name);
-    if (!val.is_null()) {
-         auto eval_args = interpreter.evaluate_args(args);
-
-         if (eval_args.size() == 1 && eval_args[0].is_flag()) {
-             auto flag = eval_args[0].get<std::shared_ptr<Flag>>();
-             return Value(flag->apply({val.as_string()}));
-         }
-
-         if (val.is_flag()) {
-             auto flag = val.get<std::shared_ptr<Flag>>();
-             std::vector<std::string> str_args;
-             for (const auto& arg : eval_args) str_args.push_back(arg.as_string());
-             return Value(flag->apply(str_args));
-         }
+    void DefaultContext::set(const std::string &name, Value value)
+    {
+        symbols[name] = value;
     }
 
-    std::cerr << "Unknown function or callable: " << name << std::endl;
-    throw std::runtime_error("Runtime Error");
-}
+    void DefaultContext::register_function(const std::string &name, std::function<Value(const std::vector<std::shared_ptr<ASTNode>> &, Interpreter &)> func)
+    {
+        functions[name] = func;
+    }
 
-// --- Interpreter ---
+    Value DefaultContext::call_function(const std::string &name, const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter &interpreter)
+    {
+        auto it = functions.find(name);
+        if (it != functions.end())
+        {
+            return it->second(args, interpreter);
+        }
 
-DefaultInterpreter::DefaultInterpreter(bool dry_run) : dry_run_mode(dry_run) {
-    using namespace std::placeholders;
-    context.register_function("ECHO", [this](const auto& args, auto& interp){ return func_echo(args, interp); });
-    context.register_function("EXECUTE", [this](const auto& args, auto& interp){ return func_execute(args, interp); });
-    context.register_function("DECLARE", [this](const auto& args, auto& interp){ return func_declare(args, interp); });
-    context.register_function("SET", [this](const auto& args, auto& interp){ return func_set(args, interp); });
-    context.register_function("IF", [this](const auto& args, auto& interp){ return func_if(args, interp); });
-    context.register_function("ARRAY", [this](const auto& args, auto& interp){ return func_array(args, interp); });
-    context.register_function("EXISTS", [this](const auto& args, auto& interp){ return func_exists(args, interp); });
-    context.register_function("NOT", [this](const auto& args, auto& interp){ return func_not(args, interp); });
-    context.register_function("EQ", [this](const auto& args, auto& interp){ return func_eq(args, interp); });
-    context.register_function("LOAD_PLUGIN", [this](const auto& args, auto& interp){ return func_load_plugin(args, interp); });
+        Value val = get(name);
+        if (!val.is_null())
+        {
+            auto eval_args = interpreter.evaluate_args(args);
 
-    // Register OS variable
+            if (eval_args.size() == 1 && eval_args[0].is_flag())
+            {
+                auto flag = eval_args[0].get<std::shared_ptr<Flag>>();
+                return Value(flag->apply({val.as_string()}));
+            }
+
+            if (val.is_flag())
+            {
+                auto flag = val.get<std::shared_ptr<Flag>>();
+                std::vector<std::string> str_args;
+                for (const auto &arg : eval_args)
+                    str_args.push_back(arg.as_string());
+                return Value(flag->apply(str_args));
+            }
+        }
+
+        std::cerr << "Unknown function or callable: " << name << std::endl;
+        throw std::runtime_error("Runtime Error");
+    }
+
+    // --- Interpreter ---
+
+    DefaultInterpreter::DefaultInterpreter(bool dry_run) : dry_run_mode(dry_run)
+    {
+        using namespace std::placeholders;
+        context.register_function("ECHO", [this](const auto &args, auto &interp)
+                                  { return func_echo(args, interp); });
+        context.register_function("EXECUTE", [this](const auto &args, auto &interp)
+                                  { return func_execute(args, interp); });
+        context.register_function("DECLARE", [this](const auto &args, auto &interp)
+                                  { return func_declare(args, interp); });
+        context.register_function("SET", [this](const auto &args, auto &interp)
+                                  { return func_set(args, interp); });
+        context.register_function("IF", [this](const auto &args, auto &interp)
+                                  { return func_if(args, interp); });
+        context.register_function("ARRAY", [this](const auto &args, auto &interp)
+                                  { return func_array(args, interp); });
+        context.register_function("EXISTS", [this](const auto &args, auto &interp)
+                                  { return func_exists(args, interp); });
+        context.register_function("NOT", [this](const auto &args, auto &interp)
+                                  { return func_not(args, interp); });
+        context.register_function("EQ", [this](const auto &args, auto &interp)
+                                  { return func_eq(args, interp); });
+        context.register_function("NEQ", [this](const auto &args, auto &interp)
+                                  { return func_neq(args, interp); });
+        context.register_function("LOAD_PLUGIN", [this](const auto &args, auto &interp)
+                                  { return func_load_plugin(args, interp); });
+        context.register_function("PLATFORM", [this](const auto &args, auto &interp)
+                                  { return func_platform(args, interp); });
+    }
+
+    Value DefaultInterpreter::visit(ASTNode *node)
+    {
+        if (auto p = dynamic_cast<Program *>(node))
+            return visit_program(p);
+        if (auto f = dynamic_cast<FunctionCall *>(node))
+            return visit_function_call(f);
+        if (auto l = dynamic_cast<Literal *>(node))
+            return visit_literal(l);
+        if (auto i = dynamic_cast<Identifier *>(node))
+            return visit_identifier(i);
+        if (auto v = dynamic_cast<VariableDeref *>(node))
+            return visit_variable_deref(v);
+        if (auto p = dynamic_cast<PropertyAccess *>(node))
+            return visit_property_access(p);
+        if (auto b = dynamic_cast<BinaryExpression *>(node))
+            return visit_binary_expression(b);
+
+        // Try plugin execution
+        void *result = node->execute(this);
+        if (result)
+        {
+            Value *v = static_cast<Value *>(result);
+            Value ret = *v;
+            delete v;
+            return ret;
+        }
+
+        return Value();
+    }
+
+    Context &DefaultInterpreter::get_context()
+    {
+        return context;
+    }
+
+    bool DefaultInterpreter::is_dry_run() const
+    {
+        return dry_run_mode;
+    }
+
+    std::string DefaultInterpreter::interpolate_string(const std::string &s)
+    {
+        std::regex re(R"(\$([a-zA-Z_]\w*))");
+        std::string result = s;
+        std::smatch match;
+
+        std::string::const_iterator searchStart(s.cbegin());
+        std::string out;
+
+        while (std::regex_search(searchStart, s.cend(), match, re))
+        {
+            out.append(searchStart, match.prefix().second);
+            std::string var_name = match[1];
+            Value val = context.get(var_name);
+            if (!val.is_null())
+            {
+                out.append(val.as_string());
+            }
+            else
+            {
+                out.append(match[0]);
+            }
+            searchStart = match.suffix().first;
+        }
+        out.append(searchStart, s.cend());
+        return out;
+    }
+
+    std::vector<Value> DefaultInterpreter::evaluate_args(const std::vector<std::shared_ptr<ASTNode>> &args)
+    {
+        std::vector<Value> values;
+        for (const auto &arg : args)
+        {
+            values.push_back(visit(arg.get()));
+        }
+        return values;
+    }
+
+    // Visitors
+
+    Value DefaultInterpreter::visit_program(Program *node)
+    {
+        Value result;
+        for (auto &stmt : node->statements)
+        {
+            result = visit(stmt.get());
+        }
+        return result;
+    }
+
+    Value DefaultInterpreter::visit_function_call(FunctionCall *node)
+    {
+        return context.call_function(node->name->name, node->args, *this);
+    }
+
+    Value DefaultInterpreter::visit_identifier(Identifier *node)
+    {
+        Value val = context.get(node->name);
+        if (!val.is_null())
+            return val;
+        return Value(node->name);
+    }
+
+    Value DefaultInterpreter::visit_literal(Literal *node)
+    {
+        if (node->type == Literal::STR)
+            return Value(node->string_value);
+        if (node->type == Literal::INT)
+            return Value(node->int_value);
+        if (node->type == Literal::BOOL)
+            return Value(node->bool_value);
+        return Value();
+    }
+
+    Value DefaultInterpreter::visit_variable_deref(VariableDeref *node)
+    {
+        auto target = node->target;
+        if (auto id = dynamic_cast<Identifier *>(target.get()))
+        {
+            return context.get(id->name);
+        }
+        if (auto lit = dynamic_cast<Literal *>(target.get()))
+        {
+            if (lit->type == Literal::STR)
+            {
+                return Value(interpolate_string(lit->string_value));
+            }
+            return visit(lit);
+        }
+        return visit(target.get());
+    }
+
+    Value DefaultInterpreter::visit_property_access(PropertyAccess *node)
+    {
+        Value obj = visit(node->target.get());
+        std::string prop = node->property_name->name;
+
+        if (obj.is_executable())
+        {
+            auto exe = obj.get<std::shared_ptr<Executable>>();
+            if (prop == "path")
+                return Value(exe->path);
+            if (prop == "name")
+                return Value(exe->name);
+        }
+
+        if (obj.is_object())
+        {
+            auto object = obj.get<std::shared_ptr<Object>>();
+            return object->get_property(prop);
+        }
+
+        return Value();
+    }
+
+    Value DefaultInterpreter::visit_binary_expression(BinaryExpression *node)
+    {
+        Value left = visit(node->left.get());
+        Value right = visit(node->right.get());
+
+        if (node->op == TokenType::PLUS)
+        {
+            // Concatenation
+            return Value(left.as_string() + right.as_string());
+        }
+        return Value();
+    }
+
+    // Core Functions
+
+    Value DefaultInterpreter::func_echo(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter & /* interp */)
+    {
+        auto vals = evaluate_args(args);
+        for (size_t i = 0; i < vals.size(); ++i)
+        {
+            std::cout << vals[i].as_string() << (i == vals.size() - 1 ? "" : " ");
+        }
+        std::cout << std::endl;
+        return Value(true);
+    }
+
+    Value DefaultInterpreter::func_array(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter & /* interp */)
+    {
+        return Value(evaluate_args(args));
+    }
+
+    Value DefaultInterpreter::func_not(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter & /* interp */)
+    {
+        auto vals = evaluate_args(args);
+        if (vals.empty())
+            return Value(true);
+        if (vals[0].is_bool())
+            return Value(!vals[0].get<bool>());
+        return Value(false);
+    }
+
+    Value DefaultInterpreter::func_eq(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter & /* interp */)
+    {
+        auto vals = evaluate_args(args);
+        if (vals.size() < 2)
+            return Value(false);
+
+        if (vals[0].is_string() && vals[1].is_string())
+            return Value(vals[0].as_string() == vals[1].as_string());
+        if (vals[0].is_int() && vals[1].is_int())
+            return Value(vals[0].get<int>() == vals[1].get<int>());
+        if (vals[0].is_bool() && vals[1].is_bool())
+            return Value(vals[0].get<bool>() == vals[1].get<bool>());
+
+        return Value(false);
+    }
+
+    Value DefaultInterpreter::func_exists(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter & /* interp */)
+    {
+        auto vals = evaluate_args(args);
+        if (vals.empty())
+            return Value(false);
+        return Value(std::filesystem::exists(vals[0].as_string()));
+    }
+
+    Value DefaultInterpreter::func_declare(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter & /* interp */)
+    {
+        auto type_node = args[0];
+        auto name_node = args[1];
+
+        Value decl_type_val = visit(type_node.get());
+        std::string decl_type = decl_type_val.as_string();
+
+        std::string name;
+        if (auto id = dynamic_cast<Identifier *>(name_node.get()))
+            name = id->name;
+        else
+            name = visit(name_node.get()).as_string();
+
+        auto vals = evaluate_args({args.begin() + 2, args.end()});
+
+        if (decl_type == "VARIABLE")
+        {
+            context.set(name, vals[0]);
+        }
+        else if (decl_type == "FLAGS")
+        {
+            context.set(name, Value(std::make_shared<Flag>(name, vals[0].as_string())));
+        }
+        else if (decl_type == "EXECUTABLE")
+        {
+            std::string desc = (vals.size() > 0) ? vals[0].as_string() : "";
+            std::string src = (vals.size() > 1) ? vals[1].as_string() : "";
+            std::string path = (vals.size() > 2) ? vals[2].as_string() : "";
+            context.set(name, Value(std::make_shared<Executable>(name, desc, src, path)));
+        }
+        return Value();
+    }
+
+    Value DefaultInterpreter::func_set(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter & /* interp */)
+    {
+        auto name_node = args[0];
+        std::string name;
+        if (auto id = dynamic_cast<Identifier *>(name_node.get()))
+            name = id->name;
+        else
+            name = visit(name_node.get()).as_string();
+
+        Value val = visit(args[1].get());
+        context.set(name, val);
+        return Value();
+    }
+
+    Value DefaultInterpreter::func_if(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter & /* interp */)
+    {
+        Value cond = visit(args[0].get());
+        bool is_true = false;
+        if (cond.is_bool())
+            is_true = cond.get<bool>();
+        else if (cond.is_int())
+            is_true = cond.get<int>() != 0;
+        else if (!cond.is_null())
+            is_true = true;
+
+        if (is_true)
+        {
+            visit(args[1].get());
+        }
+        else if (args.size() > 2)
+        {
+            visit(args[2].get());
+        }
+        return Value();
+    }
+
+    Value DefaultInterpreter::func_execute(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter & /* interp */)
+    {
+        auto evaluated_args = evaluate_args(args);
+        if (evaluated_args.empty())
+            return Value();
+
+        Value exe = evaluated_args[0];
+        std::vector<Value> cmd_args(evaluated_args.begin() + 1, evaluated_args.end());
+
+        std::vector<std::string> final_args;
+
+        std::vector<Value> processed_args;
+        size_t i = 0;
+        while (i < cmd_args.size())
+        {
+            Value arg = cmd_args[i];
+            if (arg.is_flag())
+            {
+                auto flag = arg.get<std::shared_ptr<Flag>>();
+                int arity = flag->arity;
+                std::vector<std::string> flag_inputs;
+                for (int k = 0; k < arity; ++k)
+                {
+                    if (!processed_args.empty())
+                    {
+                        flag_inputs.insert(flag_inputs.begin(), processed_args.back().as_string());
+                        processed_args.pop_back();
+                    }
+                }
+                std::string res = flag->apply(flag_inputs);
+                std::stringstream ss(res);
+                std::string segment;
+                while (std::getline(ss, segment, ' '))
+                {
+                    if (!segment.empty())
+                        processed_args.push_back(Value(segment));
+                }
+            }
+            else if (arg.is_list())
+            {
+                auto list = arg.get<std::vector<Value>>();
+                for (const auto &item : list)
+                    processed_args.push_back(item);
+            }
+            else
+            {
+                processed_args.push_back(arg);
+            }
+            i++;
+        }
+
+        std::string exe_name = exe.as_string();
+        if (exe.is_executable())
+        {
+            auto e = exe.get<std::shared_ptr<Executable>>();
+            exe_name = e->path.empty() ? e->name : e->path;
+        }
+
+        std::string full_command = exe_name;
+        for (const auto &arg : processed_args)
+        {
+            full_command += " " + arg.as_string();
+        }
+
+        if (dry_run_mode)
+        {
+            std::cout << "EXECUTE (DRY): " << full_command << std::endl;
+            return Value();
+        }
+
+        std::cout << "EXECUTE: " << full_command << std::endl;
+        int ret = std::system(full_command.c_str());
+        if (ret != 0)
+        {
+            std::cerr << "Command failed with code " << ret << std::endl;
+        }
+        return Value();
+    }
+
+    Value DefaultInterpreter::func_load_plugin(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter & /* interp */)
+    {
+        if (!attached_parser)
+        {
+            std::cerr << "Cannot load plugins: No parser attached to interpreter." << std::endl;
+            return Value();
+        }
+        auto vals = evaluate_args(args);
+        if (vals.empty())
+            return Value();
+
+        std::string path = vals[0].as_string();
+        load_plugin(path, *attached_parser, context);
+        return Value();
+    }
+
+    Value DefaultInterpreter::func_neq(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter &interp)
+    {
+        Value eq_result = func_eq(args, interp);
+        if (eq_result.is_bool())
+            return Value(!eq_result.get<bool>());
+        return Value(true);
+    }
+
+    Value DefaultInterpreter::func_platform(const std::vector<std::shared_ptr<ASTNode>> &args, Interpreter & /* interp */)
+    {
+        // Compile-time constant function. All values are baked in when the builder is compiled.
+        // Usage: PLATFORM()          -> "windows" | "linux" | "macos"
+        //        PLATFORM("os")      -> same as above
+        //        PLATFORM("arch")    -> "x86_64" | "x86" | "arm64" | "arm"
+        //        PLATFORM("shared_ext") -> "dll" | "so" | "dylib"
+        //        PLATFORM("exe_ext")    -> ".exe" | ""
+        //        PLATFORM("is_windows") -> TRUE | FALSE
+        //        PLATFORM("is_linux")   -> TRUE | FALSE
+        //        PLATFORM("is_macos")   -> TRUE | FALSE
+
+        // Compile-time OS constant
 #if defined(_WIN32) || defined(_WIN64)
-    context.set("OS", Value("windows"));
+        static const std::string os_name = "windows";
+        static const std::string shared_ext = "dll";
+        static const std::string exe_ext = ".exe";
+#elif defined(__APPLE__)
+        static const std::string os_name = "macos";
+        static const std::string shared_ext = "dylib";
+        static const std::string exe_ext = "";
 #else
-    context.set("OS", Value("linux"));
+        static const std::string os_name = "linux";
+        static const std::string shared_ext = "so";
+        static const std::string exe_ext = "";
 #endif
-}
 
-Value DefaultInterpreter::visit(ASTNode* node) {
-    if (auto p = dynamic_cast<Program*>(node)) return visit_program(p);
-    if (auto f = dynamic_cast<FunctionCall*>(node)) return visit_function_call(f);
-    if (auto l = dynamic_cast<Literal*>(node)) return visit_literal(l);
-    if (auto i = dynamic_cast<Identifier*>(node)) return visit_identifier(i);
-    if (auto v = dynamic_cast<VariableDeref*>(node)) return visit_variable_deref(v);
-    if (auto p = dynamic_cast<PropertyAccess*>(node)) return visit_property_access(p);
-    if (auto b = dynamic_cast<BinaryExpression*>(node)) return visit_binary_expression(b);
+        // Compile-time architecture constant
+#if defined(__x86_64__) || defined(_M_X64)
+        static const std::string arch = "x86_64";
+#elif defined(__i386__) || defined(_M_IX86)
+        static const std::string arch = "x86";
+#elif defined(__aarch64__) || defined(_M_ARM64)
+        static const std::string arch = "arm64";
+#elif defined(__arm__) || defined(_M_ARM)
+        static const std::string arch = "arm";
+#else
+        static const std::string arch = "unknown";
+#endif
 
-    // Try plugin execution
-    void* result = node->execute(this);
-    if (result) {
-        Value* v = static_cast<Value*>(result);
-        Value ret = *v;
-        delete v;
-        return ret;
-    }
+        auto vals = evaluate_args(args);
+        if (vals.empty())
+            return Value(os_name);
 
-    return Value();
-}
+        std::string property = vals[0].as_string();
 
-Context& DefaultInterpreter::get_context() {
-    return context;
-}
+        if (property == "os")
+            return Value(os_name);
+        if (property == "arch")
+            return Value(arch);
+        if (property == "shared_ext")
+            return Value(shared_ext);
+        if (property == "exe_ext")
+            return Value(exe_ext);
+        if (property == "is_windows")
+            return Value(os_name == "windows");
+        if (property == "is_linux")
+            return Value(os_name == "linux");
+        if (property == "is_macos")
+            return Value(os_name == "macos");
 
-bool DefaultInterpreter::is_dry_run() const {
-    return dry_run_mode;
-}
-
-std::string DefaultInterpreter::interpolate_string(const std::string& s) {
-    std::regex re(R"(\$([a-zA-Z_]\w*))");
-    std::string result = s;
-    std::smatch match;
-
-    std::string::const_iterator searchStart(s.cbegin());
-    std::string out;
-
-    while (std::regex_search(searchStart, s.cend(), match, re)) {
-        out.append(searchStart, match.prefix().second);
-        std::string var_name = match[1];
-        Value val = context.get(var_name);
-        if (!val.is_null()) {
-            out.append(val.as_string());
-        } else {
-            out.append(match[0]);
-        }
-        searchStart = match.suffix().first;
-    }
-    out.append(searchStart, s.cend());
-    return out;
-}
-
-std::vector<Value> DefaultInterpreter::evaluate_args(const std::vector<std::shared_ptr<ASTNode>>& args) {
-    std::vector<Value> values;
-    for (const auto& arg : args) {
-        values.push_back(visit(arg.get()));
-    }
-    return values;
-}
-
-// Visitors
-
-Value DefaultInterpreter::visit_program(Program* node) {
-    Value result;
-    for (auto& stmt : node->statements) {
-        result = visit(stmt.get());
-    }
-    return result;
-}
-
-Value DefaultInterpreter::visit_function_call(FunctionCall* node) {
-    return context.call_function(node->name->name, node->args, *this);
-}
-
-Value DefaultInterpreter::visit_identifier(Identifier* node) {
-    Value val = context.get(node->name);
-    if (!val.is_null()) return val;
-    return Value(node->name);
-}
-
-Value DefaultInterpreter::visit_literal(Literal* node) {
-    if (node->type == Literal::STR) return Value(node->string_value);
-    if (node->type == Literal::INT) return Value(node->int_value);
-    if (node->type == Literal::BOOL) return Value(node->bool_value);
-    return Value();
-}
-
-Value DefaultInterpreter::visit_variable_deref(VariableDeref* node) {
-    auto target = node->target;
-    if (auto id = dynamic_cast<Identifier*>(target.get())) {
-        return context.get(id->name);
-    }
-    if (auto lit = dynamic_cast<Literal*>(target.get())) {
-         if (lit->type == Literal::STR) {
-             return Value(interpolate_string(lit->string_value));
-         }
-         return visit(lit);
-    }
-    return visit(target.get());
-}
-
-Value DefaultInterpreter::visit_property_access(PropertyAccess* node) {
-    Value obj = visit(node->target.get());
-    std::string prop = node->property_name->name;
-
-    if (obj.is_executable()) {
-        auto exe = obj.get<std::shared_ptr<Executable>>();
-        if (prop == "path") return Value(exe->path);
-        if (prop == "name") return Value(exe->name);
-    }
-
-    if (obj.is_object()) {
-        auto object = obj.get<std::shared_ptr<Object>>();
-        return object->get_property(prop);
-    }
-
-    return Value();
-}
-
-Value DefaultInterpreter::visit_binary_expression(BinaryExpression* node) {
-    Value left = visit(node->left.get());
-    Value right = visit(node->right.get());
-
-    if (node->op == TokenType::PLUS) {
-        // Concatenation
-        return Value(left.as_string() + right.as_string());
-    }
-    return Value();
-}
-
-// Core Functions
-
-Value DefaultInterpreter::func_echo(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
-    auto vals = evaluate_args(args);
-    for (size_t i = 0; i < vals.size(); ++i) {
-        std::cout << vals[i].as_string() << (i == vals.size() - 1 ? "" : " ");
-    }
-    std::cout << std::endl;
-    return Value(true);
-}
-
-Value DefaultInterpreter::func_array(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
-    return Value(evaluate_args(args));
-}
-
-Value DefaultInterpreter::func_not(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
-     auto vals = evaluate_args(args);
-     if (vals.empty()) return Value(true);
-     if (vals[0].is_bool()) return Value(!vals[0].get<bool>());
-     return Value(false);
-}
-
-Value DefaultInterpreter::func_eq(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
-     auto vals = evaluate_args(args);
-     if (vals.size() < 2) return Value(false);
-
-     if (vals[0].is_string() && vals[1].is_string()) return Value(vals[0].as_string() == vals[1].as_string());
-     if (vals[0].is_int() && vals[1].is_int()) return Value(vals[0].get<int>() == vals[1].get<int>());
-     if (vals[0].is_bool() && vals[1].is_bool()) return Value(vals[0].get<bool>() == vals[1].get<bool>());
-
-     return Value(false);
-}
-
-Value DefaultInterpreter::func_exists(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
-    auto vals = evaluate_args(args);
-    if (vals.empty()) return Value(false);
-    return Value(std::filesystem::exists(vals[0].as_string()));
-}
-
-Value DefaultInterpreter::func_declare(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
-    auto type_node = args[0];
-    auto name_node = args[1];
-
-    Value decl_type_val = visit(type_node.get());
-    std::string decl_type = decl_type_val.as_string();
-
-    std::string name;
-    if (auto id = dynamic_cast<Identifier*>(name_node.get())) name = id->name;
-    else name = visit(name_node.get()).as_string();
-
-    auto vals = evaluate_args({args.begin() + 2, args.end()});
-
-    if (decl_type == "VARIABLE") {
-        context.set(name, vals[0]);
-    } else if (decl_type == "FLAGS") {
-        context.set(name, Value(std::make_shared<Flag>(name, vals[0].as_string())));
-    } else if (decl_type == "EXECUTABLE") {
-        std::string desc = (vals.size() > 0) ? vals[0].as_string() : "";
-        std::string src = (vals.size() > 1) ? vals[1].as_string() : "";
-        std::string path = (vals.size() > 2) ? vals[2].as_string() : "";
-        context.set(name, Value(std::make_shared<Executable>(name, desc, src, path)));
-    }
-    return Value();
-}
-
-Value DefaultInterpreter::func_set(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
-    auto name_node = args[0];
-    std::string name;
-    if (auto id = dynamic_cast<Identifier*>(name_node.get())) name = id->name;
-    else name = visit(name_node.get()).as_string();
-
-    Value val = visit(args[1].get());
-    context.set(name, val);
-    return Value();
-}
-
-Value DefaultInterpreter::func_if(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
-    Value cond = visit(args[0].get());
-    bool is_true = false;
-    if (cond.is_bool()) is_true = cond.get<bool>();
-    else if (cond.is_int()) is_true = cond.get<int>() != 0;
-    else if (!cond.is_null()) is_true = true;
-
-    if (is_true) {
-        visit(args[1].get());
-    } else if (args.size() > 2) {
-        visit(args[2].get());
-    }
-    return Value();
-}
-
-Value DefaultInterpreter::func_execute(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
-    auto evaluated_args = evaluate_args(args);
-    if (evaluated_args.empty()) return Value();
-
-    Value exe = evaluated_args[0];
-    std::vector<Value> cmd_args(evaluated_args.begin() + 1, evaluated_args.end());
-
-    std::vector<std::string> final_args;
-
-    std::vector<Value> processed_args;
-    size_t i = 0;
-    while (i < cmd_args.size()) {
-        Value arg = cmd_args[i];
-        if (arg.is_flag()) {
-             auto flag = arg.get<std::shared_ptr<Flag>>();
-             int arity = flag->arity;
-             std::vector<std::string> flag_inputs;
-             for (int k = 0; k < arity; ++k) {
-                 if (!processed_args.empty()) {
-                     flag_inputs.insert(flag_inputs.begin(), processed_args.back().as_string());
-                     processed_args.pop_back();
-                 }
-             }
-             std::string res = flag->apply(flag_inputs);
-             std::stringstream ss(res);
-             std::string segment;
-             while(std::getline(ss, segment, ' ')) {
-                 if(!segment.empty()) processed_args.push_back(Value(segment));
-             }
-        } else if (arg.is_list()) {
-            auto list = arg.get<std::vector<Value>>();
-            for (const auto& item : list) processed_args.push_back(item);
-        } else {
-            processed_args.push_back(arg);
-        }
-        i++;
-    }
-
-    std::string exe_name = exe.as_string();
-    if (exe.is_executable()) {
-        auto e = exe.get<std::shared_ptr<Executable>>();
-        exe_name = e->path.empty() ? e->name : e->path;
-    }
-
-    std::string full_command = exe_name;
-    for (const auto& arg : processed_args) {
-        full_command += " " + arg.as_string();
-    }
-
-    if (dry_run_mode) {
-        std::cout << "EXECUTE (DRY): " << full_command << std::endl;
+        std::cerr << "Unknown PLATFORM property: " << property << std::endl;
         return Value();
     }
-
-    std::cout << "EXECUTE: " << full_command << std::endl;
-    int ret = std::system(full_command.c_str());
-    if (ret != 0) {
-        std::cerr << "Command failed with code " << ret << std::endl;
-    }
-    return Value();
-}
-
-Value DefaultInterpreter::func_load_plugin(const std::vector<std::shared_ptr<ASTNode>>& args, Interpreter& /* interp */) {
-    if (!attached_parser) {
-        std::cerr << "Cannot load plugins: No parser attached to interpreter." << std::endl;
-        return Value();
-    }
-    auto vals = evaluate_args(args);
-    if (vals.empty()) return Value();
-
-    std::string path = vals[0].as_string();
-    load_plugin(path, *attached_parser, context);
-    return Value();
-}
 
 } // namespace dsl

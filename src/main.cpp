@@ -87,10 +87,9 @@ int main(int argc, char* argv[]) {
         load_plugins_from_dir("bin/plugins", parser, interpreter.get_context());
         load_plugins_from_dir("bin/modules", parser, interpreter.get_context());
 
-        auto program = parser.parse_program();
+        auto program = parser.parse_program(parse_only);
 
         if (parse_only) {
-            std::cout << "Program parsed successfully." << std::endl;
             return 0;
         }
 
