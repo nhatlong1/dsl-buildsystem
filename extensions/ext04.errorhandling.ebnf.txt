@@ -1,1 +1,1 @@
-try_catch        ::= "TRY" "(" statement ")" "CATCH" "(" identifier "," statement ")"
+try_catch        ::= "TRY" "(" identifier "," statement "," statement ")"

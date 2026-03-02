@@ -47,7 +47,11 @@ ECHO(@pair[1])    /* prints: output.o */
 
 ## Loading
 
-The arrays plugin must be compiled and placed in `bin/plugins/`. It is loaded automatically at startup.
+The arrays plugin must be compiled and placed in `bin/plugins/` for it to be loaded automatically at startup. It can also be loaded at runtime:
+
+```
+LOAD_PLUGIN("path/to/arrays.dll")
+```
 
 ## Notes
 

@@ -6,7 +6,7 @@ program          ::= { statement }
    Statements are typically function calls, but plugins can extend this
    to introduce new syntax forms.
 */
-statement        ::= function_call
+statement        ::= function_call | atom
 
 function_call    ::= identifier "(" [ arg_list ] ")"
 

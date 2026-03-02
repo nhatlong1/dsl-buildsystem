@@ -36,4 +36,8 @@ REPEAT(5, EXECUTE(@gpp, "--version"))
 
 ## Loading
 
-The repeat plugin must be compiled and placed in `bin/plugins/`. It is loaded automatically at startup.
+The repeat plugin must be compiled and placed in `bin/plugins/` for it to be loaded automatically at startup. It can also be loaded at runtime:
+
+```
+LOAD_PLUGIN("path/to/repeat.dll")
+```

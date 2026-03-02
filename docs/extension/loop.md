@@ -59,8 +59,8 @@ FOR(item, @plugins,
 
 ## Loading
 
-The loop plugin must be compiled and placed in `bin/plugins/`. It is loaded automatically at startup, or can be loaded at runtime:
+The loop plugin must be compiled and placed in `bin/plugins/` for it to be loaded automatically at startup. It can also be loaded at runtime:
 
 ```
-LOAD_PLUGIN("bin/plugins/loop.dll")
+LOAD_PLUGIN("path/to/loop.dll")
 ```
