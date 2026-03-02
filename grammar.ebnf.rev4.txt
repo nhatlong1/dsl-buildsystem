@@ -55,5 +55,4 @@ whitespace       ::= " " | "\t" | "\n" | "\r"
 
 /* Lexer Notes */
 
-comment          ::= Comments begin with "/*" and end with "*/".
-                     Comments may not be nested.
+comment          ::= "#" { any_char - "\n" } [ "\n" ]

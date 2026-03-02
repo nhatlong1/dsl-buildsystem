@@ -40,8 +40,16 @@ DECLARE(VARIABLE, cache_out, @"$out_dir/modules/buildcache.$ext")
 
 # Ensure output directory exists
 DECLARE(EXECUTABLE, mkdir, "Make Directory", "System", "mkdir")
-EXECUTE(mkdir, @"$out_dir/plugins")
-EXECUTE(mkdir, @"$out_dir/modules")
+IF (PLATFORM("is_windows"),
+    EXECUTE(mkdir, @"$out_dir\plugins"),
+    # else
+    EXECUTE(mkdir, @"$out_dir/plugins")
+)
+IF (PLATFORM("is_windows"),
+    EXECUTE(mkdir, @"$out_dir\modules"),
+    # else
+    EXECUTE(mkdir, @"$out_dir/modules")
+)
 
 # Build Core
 ECHO("Building Core...")

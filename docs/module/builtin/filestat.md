@@ -34,14 +34,6 @@ Or inline:
 STAT("main.cpp").LASTMODIFIEDDATE
 ```
 
-### `EXISTS(Path)`
-
-Returns `TRUE` if the file or directory exists on disk, `FALSE` otherwise.
-
-```
-IF(EXISTS("main.cpp"), ECHO("File found"))
-```
-
 ## Typical Usage
 
 Compare file timestamps against cached values for incremental builds:
